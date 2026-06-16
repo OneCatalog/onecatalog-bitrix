@@ -167,12 +167,16 @@ class onecatalog_import extends CModule
 
     public function InstallFiles()
     {
-        // Копирование admin-страниц/ajax в /bitrix/admin делается на следующем шаге.
+        // Admin-страницы (обёртки) → /bitrix/admin; JS виджета/степпера → /bitrix/js.
+        CopyDirFiles(__DIR__ . '/admin', $_SERVER['DOCUMENT_ROOT'] . '/bitrix/admin', true, true);
+        CopyDirFiles(__DIR__ . '/js', $_SERVER['DOCUMENT_ROOT'] . '/bitrix/js', true, true);
         return true;
     }
 
     public function UnInstallFiles()
     {
+        DeleteDirFiles(__DIR__ . '/admin', $_SERVER['DOCUMENT_ROOT'] . '/bitrix/admin');
+        DeleteDirFiles(__DIR__ . '/js', $_SERVER['DOCUMENT_ROOT'] . '/bitrix/js');
         return true;
     }
 
@@ -190,6 +194,7 @@ class onecatalog_import extends CModule
         $defaults = [
             'API_BASE_URL'          => 'https://api.onecatalog.net/wiki/v1',
             'API_TOKEN'             => '',
+            'PICKER_BASE'           => 'https://tools.onecatalog.net',
             'LANG'                  => 'en',
             'STEP'                  => '10',
             'NEW_ACTIVE'            => 'Y',

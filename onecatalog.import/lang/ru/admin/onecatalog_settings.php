@@ -1,0 +1,20 @@
+<?php
+$MESS['ACCESS_DENIED']              = 'Доступ запрещён';
+$MESS['ONECATALOG_SETTINGS_TITLE']  = 'OneCatalog: настройки';
+$MESS['ONECATALOG_SAVED']           = 'Настройки сохранены';
+$MESS['ONECATALOG_TAB_CONNECT']     = 'Подключение';
+$MESS['ONECATALOG_TAB_IMPORT']      = 'Импорт';
+$MESS['ONECATALOG_F_TOKEN']         = 'Токен Wiki API (X-API-Key)';
+$MESS['ONECATALOG_F_BASE']          = 'Базовый URL API';
+$MESS['ONECATALOG_F_PICKER']        = 'Origin виджета выбора (picker)';
+$MESS['ONECATALOG_F_LANG']          = 'Язык данных';
+$MESS['ONECATALOG_F_IBLOCK']        = 'Целевой инфоблок каталога';
+$MESS['ONECATALOG_NOT_SELECTED']    = '— не выбран —';
+$MESS['ONECATALOG_F_STEP']          = 'Шаг импорта (порция, минимум 10)';
+$MESS['ONECATALOG_F_NEW_ACTIVE']    = 'Статус новых товаров';
+$MESS['ONECATALOG_ACTIVE_Y']        = 'Активен';
+$MESS['ONECATALOG_ACTIVE_N']        = 'Неактивен';
+$MESS['ONECATALOG_F_COLLECTIONS']   = 'Импортировать коллекции';
+$MESS['ONECATALOG_F_BRAND']         = 'Импортировать бренд';
+$MESS['ONECATALOG_F_COUNTRY']       = 'Импортировать страну';
+$MESS['ONECATALOG_F_TAGS']          = 'Импортировать теги';

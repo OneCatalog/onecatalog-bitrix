@@ -1,0 +1,20 @@
+<?php
+$MESS['ACCESS_DENIED']              = 'Access denied';
+$MESS['ONECATALOG_SETTINGS_TITLE']  = 'OneCatalog: settings';
+$MESS['ONECATALOG_SAVED']           = 'Settings saved';
+$MESS['ONECATALOG_TAB_CONNECT']     = 'Connection';
+$MESS['ONECATALOG_TAB_IMPORT']      = 'Import';
+$MESS['ONECATALOG_F_TOKEN']         = 'Wiki API token (X-API-Key)';
+$MESS['ONECATALOG_F_BASE']          = 'API base URL';
+$MESS['ONECATALOG_F_PICKER']        = 'Picker widget origin';
+$MESS['ONECATALOG_F_LANG']          = 'Data language';
+$MESS['ONECATALOG_F_IBLOCK']        = 'Target catalog iblock';
+$MESS['ONECATALOG_NOT_SELECTED']    = '— not selected —';
+$MESS['ONECATALOG_F_STEP']          = 'Import step (batch, min 10)';
+$MESS['ONECATALOG_F_NEW_ACTIVE']    = 'Status of new products';
+$MESS['ONECATALOG_ACTIVE_Y']        = 'Active';
+$MESS['ONECATALOG_ACTIVE_N']        = 'Inactive';
+$MESS['ONECATALOG_F_COLLECTIONS']   = 'Import collections';
+$MESS['ONECATALOG_F_BRAND']         = 'Import brand';
+$MESS['ONECATALOG_F_COUNTRY']       = 'Import country';
+$MESS['ONECATALOG_F_TAGS']          = 'Import tags';

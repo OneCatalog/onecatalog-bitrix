@@ -21,19 +21,36 @@
 ```
 onecatalog.import/            ← копировать в /bitrix/modules/
 ├── install/                  манифест (CModule), version.php, таблицы oc_queue/oc_media
+│   ├── admin/                обёртки → /bitrix/admin (копируются при установке)
+│   └── js/onecatalog.import/ picker-loader.js + admin-import.js → /bitrix/js
 ├── include.php               автозагрузка классов (Loader::registerAutoLoadClasses)
 ├── lib/                      слои (namespace OneCatalog\Import)
 │   ├── api.php               клиент Wiki API (HttpClient, base/token/lang, обёртка)
 │   ├── units.php             конвертер единиц (вес→г, размеры→мм)
-│   ├── settings.php          опции + валидация/кламп (Option)
-│   ├── media.php             изображения: размер/скачивание/дедуп/качество  [TODO]
-│   ├── taxonomies.php        свойства-списки/HL, термины, разделы           [TODO]
-│   ├── *importer.php         коллекция/бренд/страна/товар (оркестратор)     [TODO]
-│   └── queue.php             фоновая очередь (AJAX-степпер + агент)         [TODO]
-├── admin/                    страницы настроек/маппинга/импорта            [TODO]
-├── ajax/                     контроллер приёма public_id + статус          [TODO]
+│   ├── settings.php          опции + валидация/кламп (Option), origin picker'а
+│   ├── taxonomies.php        свойства/enum/разделы (find-or-create по label)  ✅
+│   ├── productimporter.php   оркестратор импорта одного товара                ✅
+│   ├── queue.php             AJAX-степпер (импорт порции + лог)               ✅
+│   ├── media.php             изображения: размер/скачивание/дедуп/качество   [TODO]
+│   └── {collection,brand,country}importer.php  справочные сущности           [TODO]
+├── admin/                    onecatalog_import.php (picker+список+степпер),
+│                             onecatalog_settings.php, menu.php                ✅
 └── lang/{ru,en}/             языковые файлы
 ```
+
+## Использование
+
+1. Скопировать `onecatalog.import/` в `/bitrix/modules/`, установить модуль.
+2. **OneCatalog → Настройки**: указать токен Wiki API, **целевой инфоблок**, язык, шаг.
+3. **OneCatalog → Импорт товаров**: либо **«Выбрать товары»** (виджет-пикер
+   OneCatalog в iframe), либо вставить список `public_id` вручную. Импорт идёт
+   порциями со прогрессом и логом.
+
+> Picker встраивается с `origin`, **зафиксированным** настройкой
+> `Origin виджета выбора` (по умолчанию `https://tools.onecatalog.net`);
+> сообщения `postMessage` принимаются только от этого origin. Если админка за
+> жёстким CSP/`X-Frame-Options` — всегда работает fallback «импорт по списку
+> `public_id`» (стандарт §2.4).
 
 ## Ключевые решения (из [плана](docs/integration-plan.md) и ответов)
 

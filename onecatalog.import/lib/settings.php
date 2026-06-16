@@ -19,6 +19,7 @@ final class Settings
     public const SUPPORTED_LANGS = ['en', 'ru', 'ar', 'zh', 'kk'];
     public const MIN_STEP = 10;
     public const DEFAULT_BASE = 'https://api.onecatalog.net/wiki/v1';
+    public const DEFAULT_PICKER = 'https://tools.onecatalog.net';
 
     public static function get(string $name, $default = null)
     {
@@ -77,6 +78,13 @@ final class Settings
         return (int) self::get('CATALOG_IBLOCK_ID', 0);
     }
 
+    /** Origin виджета выбора товаров (picker), фиксируется настройкой (§2.4). */
+    public static function pickerBase(): string
+    {
+        $v = trim((string) self::get('PICKER_BASE', self::DEFAULT_PICKER));
+        return rtrim($v ?: self::DEFAULT_PICKER, '/');
+    }
+
     public static function bool(string $name, bool $default = false): bool
     {
         $v = self::get($name, $default ? 'Y' : 'N');
@@ -99,6 +107,9 @@ final class Settings
         }
         if (isset($out['API_BASE_URL'])) {
             $out['API_BASE_URL'] = rtrim(trim((string) $out['API_BASE_URL']), '/') ?: self::DEFAULT_BASE;
+        }
+        if (isset($out['PICKER_BASE'])) {
+            $out['PICKER_BASE'] = rtrim(trim((string) $out['PICKER_BASE']), '/') ?: self::DEFAULT_PICKER;
         }
         if (isset($out['API_TOKEN'])) {
             $out['API_TOKEN'] = trim((string) $out['API_TOKEN']);
