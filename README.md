@@ -31,7 +31,7 @@ onecatalog.import/            ← копировать в /bitrix/modules/
 │   ├── taxonomies.php        свойства/enum/разделы (find-or-create по label)  ✅
 │   ├── productimporter.php   оркестратор импорта одного товара                ✅
 │   ├── queue.php             AJAX-степпер (импорт порции + лог)               ✅
-│   ├── media.php             изображения: размер/скачивание/дедуп/качество   [TODO]
+│   ├── media.php             изображения: размер/скачивание/дедуп/качество   ✅
 │   └── {collection,brand,country}importer.php  справочные сущности           [TODO]
 ├── admin/                    onecatalog_import.php (picker+список+степпер),
 │                             onecatalog_settings.php, menu.php                ✅

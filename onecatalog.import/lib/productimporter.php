@@ -109,6 +109,9 @@ final class ProductImporter
         // --- габариты (Units → CCatalogProduct), цена НЕ задаётся (§5.6) ---
         $this->applyDimensions($id, $payload, $existingId === null);
 
+        // --- изображения: обложка + галерея (дедуп + трекинг качества, §5.3) ---
+        $this->applyMedia($id, $payload);
+
         // --- событие для сайтового слоя (§8), полный payload ---
         $this->fireImported($id, $payload, ['existing' => $existingId !== null]);
 
@@ -335,6 +338,83 @@ final class ProductImporter
         } else {
             \CCatalogProduct::Add($fields);
         }
+    }
+
+    /**
+     * Изображения (§2.3, §5.3): обложка → PREVIEW/DETAIL, галерея → OC_MORE_PHOTO.
+     * Идемпотентность по подписи набора (имена файлов + размер): если ничего не
+     * изменилось и качество не улучшилось — медиа пропускается (не плодим копии).
+     */
+    private function applyMedia(int $id, array $payload): void
+    {
+        $media = new Media($this->api);
+
+        $coverUrl = $media->pickUrl($payload['images_urls'] ?? null);
+
+        $files = [];
+        foreach (($payload['files'] ?? []) as $f) {
+            $cat = (string) ($f['category'] ?? '');
+            if ($cat !== '' && $cat !== 'images') {
+                continue;
+            }
+            $url = $media->pickUrl($f['urls'] ?? null);
+            if ($url !== null) {
+                $files[] = ['url' => $url, 'name' => $f['name'] ?? null, 'alt' => $f['alt'] ?? null];
+            }
+        }
+
+        if ($coverUrl === null && !$files) {
+            return;
+        }
+
+        // Подпись набора: имена файлов + выбранный размер (триггер апгрейда качества).
+        $sig = sha1((string) json_encode([
+            'cover' => $coverUrl !== null ? basename((string) parse_url($coverUrl, PHP_URL_PATH)) : null,
+            'size'  => $media->preferredSize(),
+            'files' => array_map(static fn ($f) => $f['name'] ?: Media::extractPath($f['url']), $files),
+        ], JSON_UNESCAPED_UNICODE));
+
+        $sigProp = $this->tax->ensureProperty('OC_MEDIA_SIG', 'OneCatalog media signature', 'S');
+        if ($sigProp && $this->propValue($id, 'OC_MEDIA_SIG') === $sig) {
+            return; // без изменений и без улучшения качества — пропускаем (§5.3)
+        }
+
+        $fields = [];
+        if ($coverUrl !== null) {
+            $coverId = $media->sideload($coverUrl, $payload['images_data'] ?? null);
+            if ($coverId) {
+                $fields['PREVIEW_PICTURE'] = \CFile::MakeFileArray($coverId);
+                $fields['DETAIL_PICTURE'] = \CFile::MakeFileArray($coverId);
+            }
+        }
+
+        $galleryProp = $this->tax->ensureProperty('OC_MORE_PHOTO', 'OneCatalog gallery', 'F', true);
+        $galleryValues = [];
+        foreach ($files as $f) {
+            $fid = $media->sideload($f['url'], ['name' => $f['name'], 'alt' => $f['alt']]);
+            if ($fid) {
+                $galleryValues[] = ['VALUE' => \CFile::MakeFileArray($fid)];
+            }
+        }
+
+        if ($fields) {
+            (new \CIBlockElement())->Update($id, $fields);
+        }
+        if ($galleryProp && $galleryValues) {
+            \CIBlockElement::SetPropertyValuesEx($id, $this->iblockId, [$galleryProp['ID'] => $galleryValues]);
+        }
+        if ($sigProp) {
+            \CIBlockElement::SetPropertyValuesEx($id, $this->iblockId, [$sigProp['ID'] => $sig]);
+        }
+    }
+
+    private function propValue(int $id, string $code): ?string
+    {
+        $rs = \CIBlockElement::GetProperty($this->iblockId, $id, [], ['CODE' => $code]);
+        if ($row = $rs->Fetch()) {
+            return $row['VALUE'] !== null ? (string) $row['VALUE'] : null;
+        }
+        return null;
     }
 
     /** OnBeforeImportProduct: сайт может вернуть изменённый payload (§8). */
