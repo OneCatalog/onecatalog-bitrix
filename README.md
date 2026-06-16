@@ -34,7 +34,8 @@ onecatalog.import/            ← копировать в /bitrix/modules/
 │   ├── media.php             изображения: размер/скачивание/дедуп/качество   ✅
 │   └── {brand,country,collection}importer.php  справочные сущности (список)  ✅
 ├── admin/                    onecatalog_import.php (picker+список+степпер),
-│                             onecatalog_settings.php, menu.php                ✅
+│                             onecatalog_settings.php, onecatalog_mapping.php,
+│                             menu.php                                         ✅
 └── lang/{ru,en}/             языковые файлы
 ```
 

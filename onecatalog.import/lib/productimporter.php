@@ -146,7 +146,10 @@ final class ProductImporter
      */
     private function resolveOptions(array $options): array
     {
+        $manual = Settings::manualMapping();
+        $map = $manual ? Settings::specMap() : [];
         $values = [];
+
         foreach ($options as $opt) {
             $specId = (int) ($opt['specification_id'] ?? 0);
             if ($specId <= 0) {
@@ -156,56 +159,70 @@ final class ProductImporter
             $type = (string) ($opt['specification_type'] ?? 'text');
             $code = 'OC_SPEC_' . $specId;
 
-            if ($type === 'numeric') {
-                $prop = $this->tax->ensureProperty($code, $label, 'N');
-                $num = $opt['numeric_option'] ?? null;
-                if ($prop && $num !== null && $num !== '') {
-                    $values[$prop['ID']] = $num;
+            // Резолв целевого свойства: строгий маппинг по specification_id ИЛИ
+            // авто (по имени / создать). В строгом режиме несопоставленные пропускаются.
+            $m = null;
+            if ($manual) {
+                $m = $map[(string) $specId] ?? null;
+                if (!$m || empty($m['prop'])) {
+                    continue; // строгий режим: импортируем только сопоставленные (§5.4)
                 }
-                continue;
-            }
-
-            if ($type === 'boolean') {
-                $prop = $this->tax->ensureProperty($code, $label, 'L');
+                $propId = (int) $m['prop'];
+            } else {
+                $prop = $this->tax->ensureProperty($code, $label, $type === 'numeric' ? 'N' : 'L', $type === 'text');
                 if (!$prop) {
                     continue;
                 }
-                $isTrue = ($opt['bool_option'] ?? null) === true; // null/false/нет → false (§5.6)
-                $term = $isTrue
-                    ? (Loc::getMessage('ONECATALOG_BOOL_TRUE') ?: 'Да')
-                    : (Loc::getMessage('ONECATALOG_BOOL_FALSE') ?: 'Нет');
-                $enumId = $this->tax->ensureEnum($prop['ID'], $term, $code . ($isTrue ? '_TRUE' : '_FALSE'));
-                if ($enumId) {
-                    $values[$prop['ID']] = $enumId;
-                }
-                continue;
+                $propId = $prop['ID'];
             }
 
-            // text
-            $name = $opt['specification_option_name'] ?? null;
-            if ($name === null || $name === '') {
-                continue; // у boolean приходит null — но сюда не попадёт; текст без значения пропускаем
-            }
-            $prop = $this->tax->ensureProperty($code, $label, 'L', true);
-            if (!$prop) {
-                continue;
-            }
-            $optXml = isset($opt['specification_option_id'])
-                ? 'OC_OPT_' . (int) $opt['specification_option_id']
-                : null;
-            $enumId = $this->tax->ensureEnum($prop['ID'], (string) $name, $optXml);
-            if (!$enumId) {
-                continue;
-            }
-            if (!isset($values[$prop['ID']])) {
-                $values[$prop['ID']] = $enumId;
-            } elseif (is_array($values[$prop['ID']])) {
-                $values[$prop['ID']][] = $enumId;
-            } else {
-                $values[$prop['ID']] = [$values[$prop['ID']], $enumId];
+            if ($type === 'numeric') {
+                $num = $opt['numeric_option'] ?? null;
+                if ($num !== null && $num !== '') {
+                    $this->addValue($values, $propId, $num);
+                }
+            } elseif ($type === 'boolean') {
+                $isTrue = ($opt['bool_option'] ?? null) === true; // null/false/нет → false (§5.6)
+                if ($manual && $m) {
+                    $term = $isTrue
+                        ? ($m['true'] ?? (Loc::getMessage('ONECATALOG_BOOL_TRUE') ?: 'Да'))
+                        : ($m['false'] ?? (Loc::getMessage('ONECATALOG_BOOL_FALSE') ?: 'Нет'));
+                } else {
+                    $term = $isTrue
+                        ? (Loc::getMessage('ONECATALOG_BOOL_TRUE') ?: 'Да')
+                        : (Loc::getMessage('ONECATALOG_BOOL_FALSE') ?: 'Нет');
+                }
+                $enumId = $this->tax->ensureEnum($propId, $term, $code . ($isTrue ? '_TRUE' : '_FALSE'));
+                if ($enumId) {
+                    $this->addValue($values, $propId, $enumId);
+                }
+            } else { // text
+                $name = $opt['specification_option_name'] ?? null;
+                if ($name === null || $name === '') {
+                    continue;
+                }
+                $optXml = isset($opt['specification_option_id'])
+                    ? 'OC_OPT_' . (int) $opt['specification_option_id']
+                    : null;
+                $enumId = $this->tax->ensureEnum($propId, (string) $name, $optXml);
+                if ($enumId) {
+                    $this->addValue($values, $propId, $enumId);
+                }
             }
         }
         return $values;
+    }
+
+    /** Накопить значение свойства (поддержка множественных). */
+    private function addValue(array &$values, int $propId, $value): void
+    {
+        if (!isset($values[$propId])) {
+            $values[$propId] = $value;
+        } elseif (is_array($values[$propId])) {
+            $values[$propId][] = $value;
+        } else {
+            $values[$propId] = [$values[$propId], $value];
+        }
     }
 
     /**

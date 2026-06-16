@@ -91,6 +91,31 @@ final class Settings
         return $v === 'Y' || $v === '1' || $v === 'yes';
     }
 
+    /** Включён ли строгий ручной маппинг характеристик (§5.4). */
+    public static function manualMapping(): bool
+    {
+        return self::bool('SPEC_MANUAL_MAPPING');
+    }
+
+    /**
+     * Карта маппинга: specification_id => {prop:<propId>, true:<label>, false:<label>}.
+     * Ключ — стабильный specification_id (не переводимое название, §5.4).
+     */
+    public static function specMap(): array
+    {
+        $raw = (string) self::get('SPEC_MAP', '');
+        if ($raw === '') {
+            return [];
+        }
+        $map = json_decode($raw, true);
+        return is_array($map) ? $map : [];
+    }
+
+    public static function setSpecMap(array $map): void
+    {
+        self::set('SPEC_MAP', json_encode($map, JSON_UNESCAPED_UNICODE));
+    }
+
     /**
      * Нормализация/валидация значений перед сохранением из формы настроек.
      * Возвращает очищенный массив (кламп шага, фильтр языка).
