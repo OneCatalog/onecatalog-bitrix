@@ -199,7 +199,7 @@ class onecatalog_import extends CModule
             'STEP'                  => '10',
             'NEW_ACTIVE'            => 'Y',
             'IMPORT_COLLECTIONS'    => 'Y',
-            'COLLECTION_TARGET_TYPE'=> 'iblock',
+            'COLLECTION_TARGET_TYPE'=> 'list',  // реализован адаптер «список»; iblock/раздел — opt-in
             'IMPORT_BRAND'          => 'Y',
             'BRAND_TARGET_TYPE'     => 'list',   // дефолт — список (L), не HL (в.10)
             'IMPORT_COUNTRY'        => 'N',

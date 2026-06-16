@@ -32,7 +32,7 @@ onecatalog.import/            ← копировать в /bitrix/modules/
 │   ├── productimporter.php   оркестратор импорта одного товара                ✅
 │   ├── queue.php             AJAX-степпер (импорт порции + лог)               ✅
 │   ├── media.php             изображения: размер/скачивание/дедуп/качество   ✅
-│   └── {collection,brand,country}importer.php  справочные сущности           [TODO]
+│   └── {brand,country,collection}importer.php  справочные сущности (список)  ✅
 ├── admin/                    onecatalog_import.php (picker+список+степпер),
 │                             onecatalog_settings.php, menu.php                ✅
 └── lang/{ru,en}/             языковые файлы

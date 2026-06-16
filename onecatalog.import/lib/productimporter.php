@@ -109,8 +109,14 @@ final class ProductImporter
         // --- габариты (Units → CCatalogProduct), цена НЕ задаётся (§5.6) ---
         $this->applyDimensions($id, $payload, $existingId === null);
 
+        // --- справочные сущности: бренд → страна → теги (§5.4) ---
+        $this->applyReferences($id, $payload);
+
         // --- изображения: обложка + галерея (дедуп + трекинг качества, §5.3) ---
         $this->applyMedia($id, $payload);
+
+        // --- коллекции (§5.4) ---
+        $this->applyCollections($id, $payload);
 
         // --- событие для сайтового слоя (§8), полный payload ---
         $this->fireImported($id, $payload, ['existing' => $existingId !== null]);
@@ -338,6 +344,84 @@ final class ProductImporter
         } else {
             \CCatalogProduct::Add($fields);
         }
+    }
+
+    /**
+     * Справочные сущности «тип объекта + цель» (§3, §7): бренд / страна / теги.
+     * Дефолт-адаптер — свойство-список (L). Доп. поля и лого — в события (§8).
+     */
+    private function applyReferences(int $id, array $payload): void
+    {
+        if (!empty($payload['brand']) && is_array($payload['brand']) && Settings::bool('IMPORT_BRAND', true)) {
+            $name = Loc::getMessage('ONECATALOG_PROP_BRAND') ?: 'Brand';
+            $r = (new BrandImporter($this->api, $this->tax, $this->iblockId, $name))->assign($id, $payload['brand']);
+            if ($r !== null) {
+                $this->fireEntity('OnAfterBrandImported', $id, $payload['brand'], $r);
+            }
+        }
+
+        if (!empty($payload['country']) && is_array($payload['country']) && Settings::bool('IMPORT_COUNTRY', false)) {
+            $name = Loc::getMessage('ONECATALOG_PROP_COUNTRY') ?: 'Country';
+            $r = (new CountryImporter($this->tax, $this->iblockId, $name))->assign($id, $payload['country']);
+            if ($r !== null) {
+                $this->fireEntity('OnAfterCountryImported', $id, $payload['country'], $r);
+            }
+        }
+
+        if (!empty($payload['tags']) && is_array($payload['tags']) && Settings::bool('IMPORT_TAGS', false)) {
+            $this->applyTags($id, $payload['tags']);
+        }
+    }
+
+    /** Теги → множественное свойство-список OC_TAGS (поиск по title, §5.1). */
+    private function applyTags(int $id, array $tags): void
+    {
+        $prop = $this->tax->ensureProperty('OC_TAGS', Loc::getMessage('ONECATALOG_PROP_TAGS') ?: 'Tags', 'L', true);
+        if ($prop === null) {
+            return;
+        }
+        $enumIds = [];
+        foreach ($tags as $t) {
+            $title = trim((string) ($t['title'] ?? $t['name'] ?? ''));
+            if ($title === '') {
+                continue;
+            }
+            $xmlId = isset($t['id']) ? 'OC_TAG_' . (int) $t['id'] : null;
+            $enumId = $this->tax->ensureEnum($prop['ID'], $title, $xmlId);
+            if ($enumId) {
+                $enumIds[] = $enumId;
+            }
+        }
+        if ($enumIds) {
+            \CIBlockElement::SetPropertyValuesEx($id, $this->iblockId, [$prop['ID'] => $enumIds]);
+        }
+    }
+
+    /** Коллекции (§3, §7): дефолт-адаптер — множественный список; поля → событие (§8). */
+    private function applyCollections(int $id, array $payload): void
+    {
+        if (empty($payload['collections']) || !is_array($payload['collections'])) {
+            return;
+        }
+        if (!Settings::bool('IMPORT_COLLECTIONS', true)) {
+            return;
+        }
+        $name = Loc::getMessage('ONECATALOG_PROP_COLLECTION') ?: 'Collection';
+        $results = (new CollectionImporter($this->api, $this->tax, $this->iblockId, $name))
+            ->assign($id, $payload['collections']);
+        foreach ($results as $i => $res) {
+            $entity = $payload['collections'][$i] ?? [];
+            $this->fireEntity('OnAfterCollectionImported', $id, $entity, $res);
+        }
+    }
+
+    private function fireEntity(string $eventName, int $id, array $entity, array $result): void
+    {
+        (new Event(self::EVENT_MODULE, $eventName, [
+            'ID'     => $id,
+            'ENTITY' => $entity,
+            'RESULT' => $result,
+        ]))->send();
     }
 
     /**

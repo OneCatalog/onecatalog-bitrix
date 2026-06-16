@@ -82,6 +82,25 @@ final class Taxonomies
     }
 
     /**
+     * Удобный хелпер для «справочных» сущностей (бренд/страна/коллекция/теги):
+     * find-or-create свойство-список + enum по label. Возвращает propId+enumId.
+     *
+     * @return array{propId:int,enumId:int}|null
+     */
+    public function ensureListValue(string $code, string $name, string $label, ?string $xmlId, bool $multiple = false): ?array
+    {
+        $prop = $this->ensureProperty($code, $name, 'L', $multiple);
+        if (!$prop) {
+            return null;
+        }
+        $enumId = $this->ensureEnum($prop['ID'], $label, $xmlId);
+        if (!$enumId) {
+            return null;
+        }
+        return ['propId' => $prop['ID'], 'enumId' => $enumId];
+    }
+
+    /**
      * find-or-create раздел (категория). Поиск по стабильному XML_ID='oc_cat_<id>',
      * фолбэк — по NAME (label) под тем же родителем (§5.1). Возвращает ID раздела.
      */
