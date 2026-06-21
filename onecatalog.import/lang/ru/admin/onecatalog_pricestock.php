@@ -33,3 +33,5 @@ $MESS['ONECATALOG_PS_NEW']      = 'Состав фида изменился — 
 $MESS['ONECATALOG_PS_PROMO_GROUP'] = 'Тип цены для промо';
 $MESS['ONECATALOG_PS_PROMO_OFF']   = '— не использовать —';
 $MESS['ONECATALOG_PS_USE_STORES']  = 'Раскладывать остаток по складам (складской учёт)';
+$MESS['ONECATALOG_PS_DRAG_HINT'] = 'перетащите для порядка приоритета';
+$MESS['ONECATALOG_PS_1C_HINT'] = 'Если на сайте есть обмен с 1С — он ведёт цены/остатки. Чтобы не конфликтовать, выберите ОТДЕЛЬНЫЙ тип цены и включите складской учёт на отдельный склад под OneCatalog.';

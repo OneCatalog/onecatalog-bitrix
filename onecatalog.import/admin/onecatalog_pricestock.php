@@ -66,8 +66,17 @@ if ($canWrite && $_SERVER['REQUEST_METHOD'] === 'POST' && check_bitrix_sessid() 
     $strat = (string) ($_POST['B2B_PRICE_STRATEGY'] ?? 'min');
     Settings::set('B2B_PRICE_STRATEGY', in_array($strat, ['priority', 'min', 'supplier'], true) ? $strat : 'min');
     Settings::set('B2B_SUPPLIER_FIXED', (int) ($_POST['B2B_SUPPLIER_FIXED'] ?? 0));
-    Settings::set('B2B_REGION_PRIORITY', trim((string) ($_POST['B2B_REGION_PRIORITY'] ?? '')));
-    Settings::set('B2B_SUPPLIER_PRIORITY', trim((string) ($_POST['B2B_SUPPLIER_PRIORITY'] ?? '')));
+    // Приоритеты: drag-and-drop отдаёт упорядоченный массив id; иначе — текстовый фолбэк.
+    if (isset($_POST['B2B_REGION_ORDER'])) {
+        Settings::set('B2B_REGION_PRIORITY', implode(',', array_map('intval', (array) $_POST['B2B_REGION_ORDER'])));
+    } else {
+        Settings::set('B2B_REGION_PRIORITY', trim((string) ($_POST['B2B_REGION_PRIORITY'] ?? '')));
+    }
+    if (isset($_POST['B2B_SUPPLIER_ORDER'])) {
+        Settings::set('B2B_SUPPLIER_PRIORITY', implode(',', array_map('intval', (array) $_POST['B2B_SUPPLIER_ORDER'])));
+    } else {
+        Settings::set('B2B_SUPPLIER_PRIORITY', trim((string) ($_POST['B2B_SUPPLIER_PRIORITY'] ?? '')));
+    }
     Settings::set('B2B_PRICE_GROUP', (int) ($_POST['B2B_PRICE_GROUP'] ?? 0));
     Settings::set('B2B_PROMO_GROUP', (int) ($_POST['B2B_PROMO_GROUP'] ?? 0));
     Settings::set('B2B_USE_STORES', empty($_POST['B2B_USE_STORES']) ? 'N' : 'Y');
@@ -108,6 +117,52 @@ if (Loader::includeModule('catalog')) {
 }
 $curGroup = Settings::b2bPriceGroupId();
 $strategy = Settings::b2bPriceStrategy();
+
+// Списки для drag-and-drop приоритетов (лейблы из фида/подтверждённого).
+$regions   = Settings::b2bRef('regions');
+$suppliers = Settings::b2bRef('suppliers');
+$newItems  = Settings::b2bNewItems();
+$newReg    = array_map('intval', array_keys($newItems['regions'] ?? []));
+$newSup    = array_map('intval', array_keys($newItems['suppliers'] ?? []));
+
+$orderWithRest = static function (array $order, array $all): array {
+    $all = array_map('intval', $all);
+    $out = [];
+    foreach ($order as $id) {
+        $id = (int) $id;
+        if (in_array($id, $all, true) && !in_array($id, $out, true)) {
+            $out[] = $id;
+        }
+    }
+    foreach ($all as $id) {
+        if (!in_array($id, $out, true)) {
+            $out[] = $id;
+        }
+    }
+    return $out;
+};
+$regOrder = $orderWithRest(Settings::b2bRegionPriority(), array_keys($regions));
+$supOrder = $orderWithRest(Settings::b2bSupplierPriority(), array_keys($suppliers));
+
+// Рендер сортируемого списка (HTML5 drag-and-drop; порядок hidden-инпутов = DOM).
+$renderSortable = static function (string $field, array $order, array $labels, array $newIds): void {
+    echo '<ul class="oc-sortable" style="margin:0;max-width:420px;padding-left:0;list-style:none">';
+    foreach ($order as $id) {
+        $id = (int) $id;
+        if (!isset($labels[$id])) {
+            continue;
+        }
+        $isNew = in_array($id, $newIds, true);
+        echo '<li draggable="true" style="padding:6px 10px;margin:3px 0;background:' . ($isNew ? '#fcf6e1' : '#fff')
+            . ';border:1px solid ' . ($isNew ? '#dba617' : '#ccc') . ';border-radius:3px;cursor:move">';
+        echo '☰ ' . htmlspecialcharsbx($labels[$id] . ' (#' . $id . ')');
+        if ($isNew) {
+            echo ' <b style="color:#a86b00">• new</b>';
+        }
+        echo '<input type="hidden" name="' . $field . '[]" value="' . $id . '"></li>';
+    }
+    echo '</ul>';
+};
 ?>
 <form method="post" action="<?= $APPLICATION->GetCurPage() ?>?lang=<?= LANGUAGE_ID ?>">
     <?= bitrix_sessid_post() ?>
@@ -121,6 +176,7 @@ $strategy = Settings::b2bPriceStrategy();
             <td><input type="text" size="50" name="B2B_BASE_URL" value="<?= htmlspecialcharsbx(Settings::b2bBase()) ?>"></td></tr>
 
         <tr class="heading"><td colspan="2"><?= Loc::getMessage('ONECATALOG_PS_PRICE') ?></td></tr>
+        <tr><td colspan="2"><span class="adm-info" style="color:#777"><?= Loc::getMessage('ONECATALOG_PS_1C_HINT') ?></span></td></tr>
         <tr><td><?= Loc::getMessage('ONECATALOG_PS_STRATEGY') ?></td>
             <td>
                 <select name="B2B_PRICE_STRATEGY">
@@ -130,11 +186,15 @@ $strategy = Settings::b2bPriceStrategy();
                 </select>
             </td></tr>
         <tr><td><?= Loc::getMessage('ONECATALOG_PS_REGION_PRIO') ?></td>
-            <td><input type="text" size="30" name="B2B_REGION_PRIORITY" value="<?= htmlspecialcharsbx((string) Settings::get('B2B_REGION_PRIORITY', '')) ?>" placeholder="1,3,6">
-                <span class="adm-info"><?= Loc::getMessage('ONECATALOG_PS_IDS_HINT') ?></span></td></tr>
+            <td><?php if ($regions): $renderSortable('B2B_REGION_ORDER', $regOrder, $regions, $newReg); ?>
+                <span class="adm-info"><?= Loc::getMessage('ONECATALOG_PS_DRAG_HINT') ?></span>
+                <?php else: ?><input type="text" size="30" name="B2B_REGION_PRIORITY" value="<?= htmlspecialcharsbx((string) Settings::get('B2B_REGION_PRIORITY', '')) ?>" placeholder="1,3,6">
+                <span class="adm-info"><?= Loc::getMessage('ONECATALOG_PS_IDS_HINT') ?></span><?php endif; ?></td></tr>
         <tr><td><?= Loc::getMessage('ONECATALOG_PS_SUPPLIER_PRIO') ?></td>
-            <td><input type="text" size="30" name="B2B_SUPPLIER_PRIORITY" value="<?= htmlspecialcharsbx((string) Settings::get('B2B_SUPPLIER_PRIORITY', '')) ?>" placeholder="1,2">
-                <input type="number" name="B2B_SUPPLIER_FIXED" value="<?= (int) Settings::b2bSupplierFixed() ?>" style="width:80px" title="supplier_id"></td></tr>
+            <td><?php if ($suppliers): $renderSortable('B2B_SUPPLIER_ORDER', $supOrder, $suppliers, $newSup); ?>
+                <?php else: ?><input type="text" size="30" name="B2B_SUPPLIER_PRIORITY" value="<?= htmlspecialcharsbx((string) Settings::get('B2B_SUPPLIER_PRIORITY', '')) ?>" placeholder="1,2"><?php endif; ?>
+                <div style="margin-top:6px"><?= Loc::getMessage('ONECATALOG_PS_SUPPLIER_FIXED') ?>:
+                    <input type="number" name="B2B_SUPPLIER_FIXED" value="<?= (int) Settings::b2bSupplierFixed() ?>" style="width:80px" title="supplier_id"></div></td></tr>
         <tr><td><?= Loc::getMessage('ONECATALOG_PS_PRICE_GROUP') ?></td>
             <td><select name="B2B_PRICE_GROUP">
                 <option value="0"><?= Loc::getMessage('ONECATALOG_PS_BASE_GROUP') ?></option>
@@ -201,6 +261,27 @@ $strategy = Settings::b2bPriceStrategy();
             .catch(function () { prog.textContent = M.err; btn.disabled = false; });
     }
     if (btn) btn.addEventListener('click', function () { btn.disabled = true; totalScanned = 0; totalChanged = 0; prog.textContent = M.running + ' 0'; step(0); });
+})();
+
+// Drag-and-drop приоритетов (нативный HTML5, без зависимостей).
+(function () {
+    var dragged = null;
+    document.querySelectorAll('.oc-sortable').forEach(function (ul) {
+        ul.addEventListener('dragstart', function (e) {
+            if (e.target.tagName === 'LI') { dragged = e.target; e.target.style.opacity = '0.4'; }
+        });
+        ul.addEventListener('dragend', function (e) {
+            if (e.target.tagName === 'LI') { e.target.style.opacity = ''; dragged = null; }
+        });
+        ul.addEventListener('dragover', function (e) {
+            e.preventDefault();
+            var li = e.target.closest('li');
+            if (!li || li === dragged || !dragged || li.parentNode !== ul) { return; }
+            var rect = li.getBoundingClientRect();
+            var after = (e.clientY - rect.top) > rect.height / 2;
+            ul.insertBefore(dragged, after ? li.nextSibling : li);
+        });
+    });
 })();
 </script>
 <?php

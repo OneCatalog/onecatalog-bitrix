@@ -33,3 +33,5 @@ $MESS['ONECATALOG_PS_NEW']      = 'The feed structure changed — there are new,
 $MESS['ONECATALOG_PS_PROMO_GROUP'] = 'Promo price type';
 $MESS['ONECATALOG_PS_PROMO_OFF']   = '— do not use —';
 $MESS['ONECATALOG_PS_USE_STORES']  = 'Distribute stock across warehouses (store accounting)';
+$MESS['ONECATALOG_PS_DRAG_HINT'] = 'drag to set priority order';
+$MESS['ONECATALOG_PS_1C_HINT'] = 'If the site uses 1C exchange, it owns prices/stock. To avoid conflicts, pick a SEPARATE price type and use a dedicated OneCatalog warehouse.';
