@@ -21,9 +21,12 @@ use Bitrix\Main\Loader;
  */
 final class PriceStockSync
 {
-    public const SIG_PROP    = 'OC_PRICESTOCK_SIG';
-    public const CODE_PROP   = 'OC_SUPPLIER_CODE';
-    public const LOG_OPTION  = 'B2B_LOG';
+    public const SIG_PROP        = 'OC_PRICESTOCK_SIG';
+    public const CODE_PROP       = 'OC_SUPPLIER_CODE';
+    public const LOG_OPTION      = 'B2B_LOG';
+    public const PROGRESS_OPTION = 'B2B_PROGRESS';
+    public const HISTORY_OPTION  = 'B2B_HISTORY';
+    public const HISTORY_MAX     = 30;
 
     // ===================== Чистые резолверы (тестируются без Битрикса) =====================
 
@@ -216,13 +219,25 @@ final class PriceStockSync
 
         $page = (new B2bApi())->fetchPage($start, $size);
         if ($page === null) {
-            self::log('error', __FILE__, 'feed request failed');
+            self::log('error', (string) $start, 'feed request failed');
+            self::notifyError('feed request failed');
+            self::finishProgress();
             return ['ok' => false, 'error' => 'feed', 'more' => false, 'next' => $start, 'scanned' => 0, 'changed' => 0, 'unchanged' => 0, 'total' => 0];
         }
 
         $data = $page['data'];
         $total = (int) ($page['meta']['counts'] ?? 0);
         $known = (array) ($data['products']['known'] ?? []);
+
+        // На первой странице: сброс прогресса + фиксация состава фида + уведомление.
+        if ($start === 0) {
+            Settings::set(self::PROGRESS_OPTION, json_encode([
+                'scanned' => 0, 'changed' => 0, 'unchanged' => 0,
+                'total' => $total, 'started' => time(), 'finished' => false,
+            ], JSON_UNESCAPED_UNICODE));
+            Settings::recordFeedSeen($data);
+            self::notifyChange();
+        }
 
         $tax = new Taxonomies($iblockId);
         $tax->ensureProperty(self::SIG_PROP, 'OneCatalog price/stock signature', 'S');
@@ -259,7 +274,116 @@ final class PriceStockSync
         $more = ($scanned > 0) && ($next < ($total ?: PHP_INT_MAX));
         self::log('page', (string) $start, "scanned $scanned, changed $changed, unchanged $unchanged");
 
+        // Накопление прогресса; на последней странице — запись в историю запусков.
+        self::accumulateProgress($scanned, $changed, $unchanged, $total);
+        if (!$more) {
+            self::finishProgress();
+        }
+
         return ['ok' => true, 'more' => $more, 'next' => $next, 'scanned' => $scanned, 'changed' => $changed, 'unchanged' => $unchanged, 'total' => $total];
+    }
+
+    // ===================== Прогресс / история / уведомления =====================
+
+    private static function accumulateProgress(int $scanned, int $changed, int $unchanged, int $total): void
+    {
+        $p = self::getProgress();
+        $p['scanned']   = (int) ($p['scanned'] ?? 0) + $scanned;
+        $p['changed']   = (int) ($p['changed'] ?? 0) + $changed;
+        $p['unchanged'] = (int) ($p['unchanged'] ?? 0) + $unchanged;
+        $p['total']     = $total ?: (int) ($p['total'] ?? 0);
+        Settings::set(self::PROGRESS_OPTION, json_encode($p, JSON_UNESCAPED_UNICODE));
+    }
+
+    private static function finishProgress(): void
+    {
+        $p = self::getProgress();
+        if (!empty($p['finished'])) {
+            return;
+        }
+        $p['finished'] = true;
+        $p['finished_at'] = time();
+        Settings::set(self::PROGRESS_OPTION, json_encode($p, JSON_UNESCAPED_UNICODE));
+
+        $h = self::getHistory();
+        array_unshift($h, [
+            'started'   => (int) ($p['started'] ?? 0),
+            'finished'  => (int) $p['finished_at'],
+            'total'     => (int) ($p['total'] ?? 0),
+            'scanned'   => (int) ($p['scanned'] ?? 0),
+            'changed'   => (int) ($p['changed'] ?? 0),
+            'unchanged' => (int) ($p['unchanged'] ?? 0),
+        ]);
+        Settings::set(self::HISTORY_OPTION, json_encode(array_slice($h, 0, self::HISTORY_MAX), JSON_UNESCAPED_UNICODE));
+    }
+
+    public static function getProgress(): array
+    {
+        $raw = (string) Settings::get(self::PROGRESS_OPTION, '');
+        $v = $raw !== '' ? json_decode($raw, true) : [];
+        return is_array($v) ? $v : [];
+    }
+
+    public static function getHistory(): array
+    {
+        $raw = (string) Settings::get(self::HISTORY_OPTION, '');
+        $v = $raw !== '' ? json_decode($raw, true) : [];
+        return is_array($v) ? $v : [];
+    }
+
+    /** Письмо при изменении состава фида (один раз на новый состав). */
+    private static function notifyChange(): void
+    {
+        if (!Settings::b2bNotifyEnabled()) {
+            return;
+        }
+        $new = Settings::b2bNewItems();
+        if (!$new) {
+            return;
+        }
+        $sig = [];
+        foreach ($new as $t => $items) {
+            $sig[$t] = array_keys($items);
+        }
+        $hash = md5((string) json_encode($sig));
+        if ((string) Settings::get('B2B_NOTIFIED_HASH', '') === $hash) {
+            return;
+        }
+        $lines = [];
+        foreach ($new as $t => $items) {
+            foreach ($items as $id => $label) {
+                $lines[] = "- [$t #$id] $label";
+            }
+        }
+        self::mail(
+            'OneCatalog: B2B feed changed — review needed',
+            "Состав B2B-фида изменился. Новые, ещё не настроенные элементы:\n\n"
+            . implode("\n", $lines)
+            . "\n\nОни не применяются автоматически. Настройте на странице «Цены и остатки»."
+        );
+        Settings::set('B2B_NOTIFIED_HASH', $hash);
+    }
+
+    private static function notifyError(string $message): void
+    {
+        if (!Settings::b2bNotifyEnabled()) {
+            return;
+        }
+        $last = (int) Settings::get('B2B_ERR_NOTIFIED', 0);
+        if ((time() - $last) < 3600) {
+            return;
+        }
+        self::mail('OneCatalog: B2B sync failed', "Синхронизация цен/остатков завершилась с ошибкой:\n\n" . $message);
+        Settings::set('B2B_ERR_NOTIFIED', (string) time());
+    }
+
+    private static function mail(string $subject, string $body): void
+    {
+        $to = (string) \COption::GetOptionString('main', 'email_from', '');
+        if ($to === '' || !function_exists('bxmail')) {
+            return;
+        }
+        bxmail($to, $subject, $body, 'Content-Type: text/plain; charset=utf-8');
     }
 
     /** Применить цену/остаток к элементу (единственное место записи). */

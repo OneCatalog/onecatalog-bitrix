@@ -28,3 +28,5 @@ $MESS['ONECATALOG_PS_SYNC_NOW']    = 'Sync now';
 $MESS['ONECATALOG_PS_RUNNING']     = 'Syncing…';
 $MESS['ONECATALOG_PS_DONE']        = 'Done:';
 $MESS['ONECATALOG_PS_ERR']         = 'Error';
+$MESS['ONECATALOG_PS_NOTIFY']   = 'Email notifications on feed change / error';
+$MESS['ONECATALOG_PS_NEW']      = 'The feed structure changed — there are new, not-configured items';

@@ -33,6 +33,11 @@ return [
             'title' => Loc::getMessage('ONECATALOG_MENU_PRICESTOCK'),
         ],
         [
+            'text'  => Loc::getMessage('ONECATALOG_MENU_B2B_LOG'),
+            'url'   => 'onecatalog_b2b_log.php?lang=' . LANGUAGE_ID,
+            'title' => Loc::getMessage('ONECATALOG_MENU_B2B_LOG'),
+        ],
+        [
             'text'  => Loc::getMessage('ONECATALOG_MENU_MAPPING'),
             'url'   => 'onecatalog_mapping.php?lang=' . LANGUAGE_ID,
             'title' => Loc::getMessage('ONECATALOG_MENU_MAPPING'),

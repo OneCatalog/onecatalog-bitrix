@@ -209,6 +209,85 @@ final class Settings
         return max(50, min(500, $n));
     }
 
+    public static function b2bNotifyEnabled(): bool
+    {
+        return self::bool('B2B_NOTIFY', true);
+    }
+
+    /** Подтверждённый справочник {regions,warehouses,suppliers} id=>label. */
+    public static function b2bCatalogMeta(): array
+    {
+        return self::jsonOpt('B2B_CATALOG_META');
+    }
+
+    /** Последний справочник, увиденный в фиде. */
+    public static function b2bFeedMeta(): array
+    {
+        return self::jsonOpt('B2B_FEED_META');
+    }
+
+    /** Лейблы справочника по типу (последнее из фида + подтверждённое). */
+    public static function b2bRef(string $type): array
+    {
+        $cm = (array) (self::b2bCatalogMeta()[$type] ?? []);
+        $fm = (array) (self::b2bFeedMeta()[$type] ?? []);
+        return $fm + $cm;
+    }
+
+    /** Новые (не подтверждённые) элементы по типам: [type => [id=>label]]. */
+    public static function b2bNewItems(): array
+    {
+        $out = [];
+        foreach (['regions', 'suppliers', 'warehouses'] as $type) {
+            $ack = array_map('intval', array_keys((array) (self::b2bCatalogMeta()[$type] ?? [])));
+            $cur = (array) (self::b2bFeedMeta()[$type] ?? []);
+            $new = [];
+            foreach ($cur as $id => $label) {
+                if (!in_array((int) $id, $ack, true)) {
+                    $new[(int) $id] = (string) $label;
+                }
+            }
+            if ($new) {
+                $out[$type] = $new;
+            }
+        }
+        return $out;
+    }
+
+    /** Зафиксировать состав справочников из ответа фида (data). */
+    public static function recordFeedSeen(array $data): void
+    {
+        $meta = ['regions' => [], 'warehouses' => [], 'suppliers' => []];
+        foreach ((array) ($data['regions'] ?? []) as $id => $r) {
+            $meta['regions'][(int) $id] = (string) ($r['menutitle'] ?? $r['slug'] ?? ('#' . $id));
+        }
+        foreach ((array) ($data['warehouses'] ?? []) as $id => $w) {
+            $label = trim((string) ($w['name'] ?? '') . (empty($w['city']) ? '' : ' (' . $w['city'] . ')'));
+            $meta['warehouses'][(int) $id] = $label !== '' ? $label : ('#' . $id);
+        }
+        foreach ((array) ($data['suppliers'] ?? []) as $id => $s) {
+            $meta['suppliers'][(int) $id] = (string) ($s['name'] ?? ('#' . $id));
+        }
+        self::set('B2B_FEED_META', json_encode($meta, JSON_UNESCAPED_UNICODE));
+    }
+
+    /** Принять текущий состав фида как подтверждённый (после настройки). */
+    public static function acknowledgeFeed(): void
+    {
+        $fm = self::b2bFeedMeta();
+        if ($fm) {
+            self::set('B2B_CATALOG_META', json_encode($fm, JSON_UNESCAPED_UNICODE));
+        }
+        self::set('B2B_NOTIFIED_HASH', '');
+    }
+
+    private static function jsonOpt(string $name): array
+    {
+        $raw = (string) self::get($name, '');
+        $v = $raw !== '' ? json_decode($raw, true) : [];
+        return is_array($v) ? $v : [];
+    }
+
     /** Список целых из строки «1,2,3» или массива (порядок сохраняется). */
     private static function intList($raw): array
     {

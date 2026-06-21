@@ -28,3 +28,5 @@ $MESS['ONECATALOG_PS_SYNC_NOW']    = 'Синхронизировать сейч�
 $MESS['ONECATALOG_PS_RUNNING']     = 'Синхронизация…';
 $MESS['ONECATALOG_PS_DONE']        = 'Готово:';
 $MESS['ONECATALOG_PS_ERR']         = 'Ошибка';
+$MESS['ONECATALOG_PS_NOTIFY']   = 'Email-уведомления при изменении состава фида / ошибке';
+$MESS['ONECATALOG_PS_NEW']      = 'Состав фида изменился — есть новые ненастроенные элементы';

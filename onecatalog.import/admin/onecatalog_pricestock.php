@@ -42,9 +42,15 @@ if (($_REQUEST['ajax'] ?? '') === 'Y') {
         echo Json::encode($res);
     } elseif ($act === 'test') {
         $meta = (new B2bApi())->discover();
-        echo Json::encode($meta === null
-            ? ['error' => 'feed']
-            : ['ok' => true, 'regions' => $meta['regions'], 'warehouses' => $meta['warehouses'], 'suppliers' => $meta['suppliers']]);
+        if ($meta === null) {
+            echo Json::encode(['error' => 'feed']);
+        } else {
+            // Зафиксировать и подтвердить состав справочников (сбросить «новое»).
+            Settings::set('B2B_FEED_META', Json::encode($meta));
+            Settings::set('B2B_CATALOG_META', Json::encode($meta));
+            Settings::set('B2B_NOTIFIED_HASH', '');
+            echo Json::encode(['ok' => true, 'regions' => $meta['regions'], 'warehouses' => $meta['warehouses'], 'suppliers' => $meta['suppliers']]);
+        }
     } else {
         echo Json::encode(['error' => 'unknown']);
     }
@@ -67,6 +73,8 @@ if ($canWrite && $_SERVER['REQUEST_METHOD'] === 'POST' && check_bitrix_sessid() 
     Settings::set('B2B_PAGE_SIZE', max(50, min(500, (int) ($_POST['B2B_PAGE_SIZE'] ?? 200))));
     Settings::set('B2B_PROMO_AS_SALE', empty($_POST['B2B_PROMO_AS_SALE']) ? 'N' : 'Y');
     Settings::set('B2B_DECIMAL_STOCK', empty($_POST['B2B_DECIMAL_STOCK']) ? 'N' : 'Y');
+    Settings::set('B2B_NOTIFY', empty($_POST['B2B_NOTIFY']) ? 'N' : 'Y');
+    Settings::acknowledgeFeed(); // сохранение = подтверждение текущего состава фида
     $saved = true;
 }
 
@@ -78,6 +86,14 @@ if ($saved) {
 }
 if (Settings::catalogIblockId() <= 0) {
     echo CAdminMessage::ShowMessage(['TYPE' => 'ERROR', 'MESSAGE' => Loc::getMessage('ONECATALOG_PS_NO_IBLOCK'), 'HTML' => true]);
+}
+$newItems = Settings::b2bNewItems();
+if ($newItems) {
+    $parts = [];
+    foreach ($newItems as $type => $items) {
+        $parts[] = $type . ': ' . count($items);
+    }
+    echo CAdminMessage::ShowMessage(['TYPE' => 'PROGRESS', 'MESSAGE' => Loc::getMessage('ONECATALOG_PS_NEW') . ' (' . htmlspecialcharsbx(implode('; ', $parts)) . ')', 'HTML' => true]);
 }
 
 // Типы цен для выбора.
@@ -130,6 +146,7 @@ $strategy = Settings::b2bPriceStrategy();
             <td>
                 <label><input type="checkbox" name="B2B_PROMO_AS_SALE" value="Y"<?= Settings::bool('B2B_PROMO_AS_SALE', true) ? ' checked' : '' ?>> <?= Loc::getMessage('ONECATALOG_PS_PROMO') ?></label><br>
                 <label><input type="checkbox" name="B2B_DECIMAL_STOCK" value="Y"<?= Settings::bool('B2B_DECIMAL_STOCK', true) ? ' checked' : '' ?>> <?= Loc::getMessage('ONECATALOG_PS_DECIMAL') ?></label><br>
+                <label><input type="checkbox" name="B2B_NOTIFY" value="Y"<?= Settings::b2bNotifyEnabled() ? ' checked' : '' ?>> <?= Loc::getMessage('ONECATALOG_PS_NOTIFY') ?></label><br>
                 <?= Loc::getMessage('ONECATALOG_PS_PAGE') ?>: <input type="number" name="B2B_PAGE_SIZE" min="50" max="500" value="<?= (int) Settings::b2bPageSize() ?>" style="width:80px">
             </td></tr>
     </table>
