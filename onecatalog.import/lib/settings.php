@@ -209,6 +209,18 @@ final class Settings
         return max(50, min(500, $n));
     }
 
+    /** Раскладывать остаток по складам (CCatalogStoreProduct) вместо суммарного QUANTITY. */
+    public static function b2bUseStores(): bool
+    {
+        return self::bool('B2B_USE_STORES', false);
+    }
+
+    /** Тип цены для промо (0 — не использовать отдельный тип, промо игнорируется). */
+    public static function b2bPromoGroupId(): int
+    {
+        return (int) self::get('B2B_PROMO_GROUP', 0);
+    }
+
     public static function b2bNotifyEnabled(): bool
     {
         return self::bool('B2B_NOTIFY', true);

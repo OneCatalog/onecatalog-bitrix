@@ -124,16 +124,25 @@ final class PriceStockSync
         return ['regular' => $price['base'], 'sale' => $sale, 'purchasing' => $price['purchasing']];
     }
 
+    /** Остаток по складам: [warehouse_id => qty] (сумма по поставщикам). */
+    public static function stockByWarehouse(array $offers): array
+    {
+        $out = [];
+        foreach ($offers as $o) {
+            foreach ((array) ($o['products_stocks'] ?? []) as $s) {
+                $wid = (int) ($s['warehouse_id'] ?? 0);
+                if ($wid > 0) {
+                    $out[$wid] = ($out[$wid] ?? 0.0) + (float) ($s['quantity'] ?? 0);
+                }
+            }
+        }
+        return $out;
+    }
+
     /** Суммарный остаток по всем складам поставщиков. */
     public static function resolveStock(array $offers): float
     {
-        $sum = 0.0;
-        foreach ($offers as $o) {
-            foreach ((array) ($o['products_stocks'] ?? []) as $s) {
-                $sum += (float) ($s['quantity'] ?? 0);
-            }
-        }
-        return $sum;
+        return array_sum(self::stockByWarehouse($offers));
     }
 
     public static function anyAvailable(array $offers): bool
@@ -159,14 +168,21 @@ final class PriceStockSync
         return $out;
     }
 
-    /** Сигнатура того, что будет записано (цена+скидка+кол-во+статус). */
+    /** Сигнатура того, что будет записано (цена+скидка+кол-во+статус+склады). */
     public static function signature(array $r): string
     {
+        $storesPart = '-';
+        if (!empty($r['stores']) && is_array($r['stores'])) {
+            $s = $r['stores'];
+            ksort($s);
+            $storesPart = md5((string) json_encode($s));
+        }
         return md5(implode('|', [
             $r['regular'] === null ? '-' : (string) (float) $r['regular'],
             ($r['sale'] ?? null) === null ? '-' : (string) (float) $r['sale'],
             (string) (float) ($r['qty'] ?? 0),
             (string) ($r['status'] ?? ''),
+            $storesPart,
         ]));
     }
 
@@ -174,7 +190,8 @@ final class PriceStockSync
     public static function resolveRecord(array $offers, array $cfg): array
     {
         $price = self::resolvePrice($offers, $cfg['region_prio'], $cfg['supplier_prio'], $cfg['strategy'], $cfg['supplier_fix'], $cfg['promo_as_sale']);
-        $stock = self::resolveStock($offers);
+        $byWh  = self::stockByWarehouse($offers);
+        $stock = array_sum($byWh);
         $available = self::anyAvailable($offers) && $stock > 0;
         $qty = $cfg['decimal'] ? $stock : (float) floor($stock);
 
@@ -184,6 +201,8 @@ final class PriceStockSync
             'purchasing' => $price['purchasing'],
             'qty'        => $qty,
             'status'     => $available ? 'Y' : 'N',
+            // Раскладка по складам — только когда включён складской учёт (влияет на сигнатуру).
+            'stores'     => !empty($cfg['use_stores']) ? ($cfg['decimal'] ? $byWh : array_map('floor', $byWh)) : null,
         ];
         $rec['sig'] = self::signature($rec);
         return $rec;
@@ -200,6 +219,7 @@ final class PriceStockSync
             'supplier_fix'  => Settings::b2bSupplierFixed(),
             'promo_as_sale' => Settings::bool('B2B_PROMO_AS_SALE', true),
             'decimal'       => Settings::bool('B2B_DECIMAL_STOCK', true),
+            'use_stores'    => Settings::b2bUseStores(),
         ];
     }
 
@@ -245,8 +265,14 @@ final class PriceStockSync
 
         $map = self::mapPublicIds($iblockId, array_keys($known)); // public_id => ['id'=>, 'sig'=>]
         $cfg = self::cfg();
-        $currency = Settings::b2bCurrency();
-        $groupId  = Settings::b2bPriceGroupId();
+        $currency   = Settings::b2bCurrency();
+        $groupId    = Settings::b2bPriceGroupId();
+        $promoGroup = Settings::b2bPromoGroupId();
+        $useStores  = Settings::b2bUseStores();
+        $warehouses = [];
+        foreach ((array) ($data['warehouses'] ?? []) as $wid => $w) {
+            $warehouses[(int) $wid] = (string) ($w['name'] ?? ('#' . $wid));
+        }
 
         $scanned = 0;
         $changed = 0;
@@ -266,7 +292,7 @@ final class PriceStockSync
                 $unchanged++;
                 continue;
             }
-            self::applyResolved((int) $row['id'], $iblockId, $rec, $offers, $groupId, $currency);
+            self::applyResolved((int) $row['id'], $iblockId, $rec, $offers, $groupId, $currency, $promoGroup, $useStores, $warehouses);
             $changed++;
         }
 
@@ -387,30 +413,32 @@ final class PriceStockSync
     }
 
     /** Применить цену/остаток к элементу (единственное место записи). */
-    private static function applyResolved(int $id, int $iblockId, array $rec, array $offers, int $groupId, string $currency): void
+    private static function applyResolved(int $id, int $iblockId, array $rec, array $offers, int $groupId, string $currency, int $promoGroup = 0, bool $useStores = false, array $warehouses = []): void
     {
-        // Цена → CPrice (базовый тип цены). promo как отдельный тип — следующий инкремент.
+        // Цена → CPrice (базовый тип цены). Промо — в отдельный тип цены (если задан).
         if ($rec['regular'] !== null && $groupId > 0) {
-            $existing = \CPrice::GetList([], ['PRODUCT_ID' => $id, 'CATALOG_GROUP_ID' => $groupId])->Fetch();
-            $fields = [
-                'PRODUCT_ID'       => $id,
-                'CATALOG_GROUP_ID' => $groupId,
-                'PRICE'            => $rec['regular'],
-                'CURRENCY'         => $currency,
-            ];
-            if ($existing) {
-                \CPrice::Update($existing['ID'], $fields);
-            } else {
-                \CPrice::Add($fields);
-            }
+            self::setPrice($id, $groupId, (float) $rec['regular'], $currency);
+        }
+        if ($rec['sale'] !== null && $promoGroup > 0) {
+            self::setPrice($id, $promoGroup, (float) $rec['sale'], $currency);
         }
 
-        // Остаток → CCatalogProduct.QUANTITY (сумма по складам). Цена не «выдумывается».
-        if (\CCatalogProduct::GetByID($id)) {
-            \CCatalogProduct::Update($id, ['QUANTITY' => $rec['qty']]);
-        } else {
+        // Карточка товара существует (иначе создаём без цены, §5.6).
+        if (!\CCatalogProduct::GetByID($id)) {
             \CCatalogProduct::Add(['ID' => $id, 'QUANTITY' => $rec['qty']]);
         }
+
+        // Остаток: раскладка по складам (нативно) ИЛИ суммарный QUANTITY.
+        if ($useStores && !empty($rec['stores']) && is_array($rec['stores'])) {
+            foreach ($rec['stores'] as $wid => $amount) {
+                $storeId = self::ensureStore((int) $wid, (string) ($warehouses[(int) $wid] ?? ''));
+                if ($storeId > 0) {
+                    self::setStoreAmount($id, $storeId, (float) $amount);
+                }
+            }
+        }
+        // Суммарное количество выставляем всегда (типовые компоненты опираются на него).
+        \CCatalogProduct::Update($id, ['QUANTITY' => $rec['qty']]);
 
         // Коды поставщиков + сигнатура.
         $values = [];
@@ -428,6 +456,50 @@ final class PriceStockSync
         (new \Bitrix\Main\Event('onecatalog.import', 'OnAfterPriceStockUpdated', [
             'ID' => $id, 'RECORD' => $rec, 'OFFERS' => $offers,
         ]))->send();
+    }
+
+    /** Установить цену товара в указанном типе цены (find-or-create CPrice). */
+    private static function setPrice(int $productId, int $groupId, float $price, string $currency): void
+    {
+        $existing = \CPrice::GetList([], ['PRODUCT_ID' => $productId, 'CATALOG_GROUP_ID' => $groupId])->Fetch();
+        $fields = [
+            'PRODUCT_ID'       => $productId,
+            'CATALOG_GROUP_ID' => $groupId,
+            'PRICE'            => $price,
+            'CURRENCY'         => $currency,
+        ];
+        if ($existing) {
+            \CPrice::Update($existing['ID'], $fields);
+        } else {
+            \CPrice::Add($fields);
+        }
+    }
+
+    /** find-or-create склад Битрикса по стабильному XML_ID = oc_wh_<id>. */
+    private static function ensureStore(int $warehouseId, string $title): int
+    {
+        $xmlId = 'oc_wh_' . $warehouseId;
+        $rs = \CCatalogStore::GetList([], ['XML_ID' => $xmlId], false, false, ['ID']);
+        if ($row = $rs->Fetch()) {
+            return (int) $row['ID'];
+        }
+        $id = \CCatalogStore::Add([
+            'TITLE'  => $title !== '' ? $title : ('Warehouse #' . $warehouseId),
+            'ACTIVE' => 'Y',
+            'XML_ID' => $xmlId,
+        ]);
+        return $id ? (int) $id : 0;
+    }
+
+    /** Установить остаток товара на складе (find-or-create CCatalogStoreProduct). */
+    private static function setStoreAmount(int $productId, int $storeId, float $amount): void
+    {
+        $rs = \CCatalogStoreProduct::GetList([], ['PRODUCT_ID' => $productId, 'STORE_ID' => $storeId], false, false, ['ID']);
+        if ($row = $rs->Fetch()) {
+            \CCatalogStoreProduct::Update((int) $row['ID'], ['AMOUNT' => $amount]);
+        } else {
+            \CCatalogStoreProduct::Add(['PRODUCT_ID' => $productId, 'STORE_ID' => $storeId, 'AMOUNT' => $amount]);
+        }
     }
 
     /** Карта public_id → ['id','sig'] одним запросом (для diff в памяти). */

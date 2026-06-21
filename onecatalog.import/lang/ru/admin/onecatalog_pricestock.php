@@ -30,3 +30,6 @@ $MESS['ONECATALOG_PS_DONE']        = 'Готово:';
 $MESS['ONECATALOG_PS_ERR']         = 'Ошибка';
 $MESS['ONECATALOG_PS_NOTIFY']   = 'Email-уведомления при изменении состава фида / ошибке';
 $MESS['ONECATALOG_PS_NEW']      = 'Состав фида изменился — есть новые ненастроенные элементы';
+$MESS['ONECATALOG_PS_PROMO_GROUP'] = 'Тип цены для промо';
+$MESS['ONECATALOG_PS_PROMO_OFF']   = '— не использовать —';
+$MESS['ONECATALOG_PS_USE_STORES']  = 'Раскладывать остаток по складам (складской учёт)';

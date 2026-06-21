@@ -69,6 +69,8 @@ if ($canWrite && $_SERVER['REQUEST_METHOD'] === 'POST' && check_bitrix_sessid() 
     Settings::set('B2B_REGION_PRIORITY', trim((string) ($_POST['B2B_REGION_PRIORITY'] ?? '')));
     Settings::set('B2B_SUPPLIER_PRIORITY', trim((string) ($_POST['B2B_SUPPLIER_PRIORITY'] ?? '')));
     Settings::set('B2B_PRICE_GROUP', (int) ($_POST['B2B_PRICE_GROUP'] ?? 0));
+    Settings::set('B2B_PROMO_GROUP', (int) ($_POST['B2B_PROMO_GROUP'] ?? 0));
+    Settings::set('B2B_USE_STORES', empty($_POST['B2B_USE_STORES']) ? 'N' : 'Y');
     Settings::set('B2B_CURRENCY', trim((string) ($_POST['B2B_CURRENCY'] ?? '')));
     Settings::set('B2B_PAGE_SIZE', max(50, min(500, (int) ($_POST['B2B_PAGE_SIZE'] ?? 200))));
     Settings::set('B2B_PROMO_AS_SALE', empty($_POST['B2B_PROMO_AS_SALE']) ? 'N' : 'Y');
@@ -140,11 +142,19 @@ $strategy = Settings::b2bPriceStrategy();
                     <option value="<?= $gid ?>"<?= $curGroup === $gid ? ' selected' : '' ?>><?= htmlspecialcharsbx($gname) ?></option>
                 <?php endforeach; ?>
             </select></td></tr>
+        <tr><td><?= Loc::getMessage('ONECATALOG_PS_PROMO_GROUP') ?></td>
+            <td><select name="B2B_PROMO_GROUP">
+                <option value="0"><?= Loc::getMessage('ONECATALOG_PS_PROMO_OFF') ?></option>
+                <?php foreach ($priceGroups as $gid => $gname): ?>
+                    <option value="<?= $gid ?>"<?= (int) Settings::b2bPromoGroupId() === $gid ? ' selected' : '' ?>><?= htmlspecialcharsbx($gname) ?></option>
+                <?php endforeach; ?>
+            </select></td></tr>
         <tr><td><?= Loc::getMessage('ONECATALOG_PS_CURRENCY') ?></td>
             <td><input type="text" size="8" name="B2B_CURRENCY" value="<?= htmlspecialcharsbx(Settings::b2bCurrency()) ?>"></td></tr>
         <tr><td><?= Loc::getMessage('ONECATALOG_PS_OPTS') ?></td>
             <td>
                 <label><input type="checkbox" name="B2B_PROMO_AS_SALE" value="Y"<?= Settings::bool('B2B_PROMO_AS_SALE', true) ? ' checked' : '' ?>> <?= Loc::getMessage('ONECATALOG_PS_PROMO') ?></label><br>
+                <label><input type="checkbox" name="B2B_USE_STORES" value="Y"<?= Settings::b2bUseStores() ? ' checked' : '' ?>> <?= Loc::getMessage('ONECATALOG_PS_USE_STORES') ?></label><br>
                 <label><input type="checkbox" name="B2B_DECIMAL_STOCK" value="Y"<?= Settings::bool('B2B_DECIMAL_STOCK', true) ? ' checked' : '' ?>> <?= Loc::getMessage('ONECATALOG_PS_DECIMAL') ?></label><br>
                 <label><input type="checkbox" name="B2B_NOTIFY" value="Y"<?= Settings::b2bNotifyEnabled() ? ' checked' : '' ?>> <?= Loc::getMessage('ONECATALOG_PS_NOTIFY') ?></label><br>
                 <?= Loc::getMessage('ONECATALOG_PS_PAGE') ?>: <input type="number" name="B2B_PAGE_SIZE" min="50" max="500" value="<?= (int) Settings::b2bPageSize() ?>" style="width:80px">

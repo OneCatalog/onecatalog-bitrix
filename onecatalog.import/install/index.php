@@ -213,8 +213,11 @@ class onecatalog_import extends CModule
             'B2B_PRIVATE_KEY'       => '',
             'B2B_PRICE_STRATEGY'    => 'min',
             'B2B_PROMO_AS_SALE'     => 'Y',
+            'B2B_PROMO_GROUP'       => '0',
             'B2B_DECIMAL_STOCK'     => 'Y',
+            'B2B_USE_STORES'        => 'N',
             'B2B_PAGE_SIZE'         => '200',
+            'B2B_NOTIFY'            => 'Y',
         ];
         foreach ($defaults as $name => $value) {
             if (Option::get('onecatalog.import', $name, null) === null) {
