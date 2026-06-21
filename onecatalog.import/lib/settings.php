@@ -116,6 +116,115 @@ final class Settings
         self::set('SPEC_MAP', json_encode($map, JSON_UNESCAPED_UNICODE));
     }
 
+    // ===================== B2B: цены и остатки (§13) =====================
+
+    public const DEFAULT_B2B_BASE = 'https://api.onecatalog.net/b2b/v1';
+    public const B2B_PAGE_DEFAULT = 200;
+
+    public static function b2bBase(): string
+    {
+        if (defined('ONECATALOG_B2B_BASE') && ONECATALOG_B2B_BASE) {
+            return rtrim((string) ONECATALOG_B2B_BASE, '/');
+        }
+        $v = (string) self::get('B2B_BASE_URL', self::DEFAULT_B2B_BASE);
+        return rtrim($v ?: self::DEFAULT_B2B_BASE, '/');
+    }
+
+    public static function b2bUrlKey(): string
+    {
+        if (defined('ONECATALOG_B2B_KEY') && ONECATALOG_B2B_KEY) {
+            return (string) ONECATALOG_B2B_KEY;
+        }
+        return trim((string) self::get('B2B_KEY', ''));
+    }
+
+    public static function b2bPrivateKey(): string
+    {
+        if (defined('ONECATALOG_B2B_PRIVATE_KEY') && ONECATALOG_B2B_PRIVATE_KEY) {
+            return (string) ONECATALOG_B2B_PRIVATE_KEY;
+        }
+        return trim((string) self::get('B2B_PRIVATE_KEY', ''));
+    }
+
+    public static function b2bConfigured(): bool
+    {
+        return self::b2bUrlKey() !== '' && self::b2bPrivateKey() !== '';
+    }
+
+    public static function b2bPriceStrategy(): string
+    {
+        $s = (string) self::get('B2B_PRICE_STRATEGY', 'min');
+        return in_array($s, ['priority', 'min', 'supplier'], true) ? $s : 'min';
+    }
+
+    /** @return int[] упорядоченный приоритет регионов */
+    public static function b2bRegionPriority(): array
+    {
+        return self::intList(self::get('B2B_REGION_PRIORITY', ''));
+    }
+
+    /** @return int[] упорядоченный приоритет поставщиков */
+    public static function b2bSupplierPriority(): array
+    {
+        return self::intList(self::get('B2B_SUPPLIER_PRIORITY', ''));
+    }
+
+    public static function b2bSupplierFixed(): int
+    {
+        return (int) self::get('B2B_SUPPLIER_FIXED', 0);
+    }
+
+    /** Тип цены (CATALOG_GROUP_ID); 0 → базовый тип цены каталога. */
+    public static function b2bPriceGroupId(): int
+    {
+        $id = (int) self::get('B2B_PRICE_GROUP', 0);
+        if ($id > 0) {
+            return $id;
+        }
+        if (class_exists('\\CCatalogGroup')) {
+            $base = \CCatalogGroup::GetBaseGroup();
+            return (int) ($base['ID'] ?? 0);
+        }
+        return 0;
+    }
+
+    public static function b2bCurrency(): string
+    {
+        $c = trim((string) self::get('B2B_CURRENCY', ''));
+        if ($c !== '') {
+            return $c;
+        }
+        if (class_exists('\\Bitrix\\Currency\\CurrencyManager')) {
+            $base = \Bitrix\Currency\CurrencyManager::getBaseCurrency();
+            if ($base) {
+                return (string) $base;
+            }
+        }
+        return 'RUB';
+    }
+
+    public static function b2bPageSize(): int
+    {
+        $n = (int) self::get('B2B_PAGE_SIZE', self::B2B_PAGE_DEFAULT);
+        return max(50, min(500, $n));
+    }
+
+    /** Список целых из строки «1,2,3» или массива (порядок сохраняется). */
+    private static function intList($raw): array
+    {
+        if (is_string($raw)) {
+            $raw = preg_split('/[\s,;]+/', $raw, -1, PREG_SPLIT_NO_EMPTY) ?: [];
+        }
+        $out = [];
+        foreach ((array) $raw as $v) {
+            $v = (int) $v;
+            if ($v > 0 && !in_array($v, $out, true)) {
+                $out[] = $v;
+            }
+        }
+        return $out;
+    }
+
     /**
      * Нормализация/валидация значений перед сохранением из формы настроек.
      * Возвращает очищенный массив (кламп шага, фильтр языка).

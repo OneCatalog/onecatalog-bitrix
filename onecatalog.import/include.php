@@ -19,4 +19,6 @@ Loader::registerAutoLoadClasses('onecatalog.import', [
     'OneCatalog\\Import\\CountryImporter'   => 'lib/countryimporter.php',
     'OneCatalog\\Import\\ProductImporter'   => 'lib/productimporter.php',
     'OneCatalog\\Import\\Queue'             => 'lib/queue.php',
+    'OneCatalog\\Import\\B2bApi'            => 'lib/b2bapi.php',
+    'OneCatalog\\Import\\PriceStockSync'    => 'lib/pricestocksync.php',
 ]);

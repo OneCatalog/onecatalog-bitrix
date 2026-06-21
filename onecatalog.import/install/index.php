@@ -207,6 +207,14 @@ class onecatalog_import extends CModule
             'IMPORT_TAGS'           => 'N',
             'SPEC_MANUAL_MAPPING'   => 'N',
             'CATALOG_IBLOCK_ID'     => '',
+            // B2B: цены и остатки (§13)
+            'B2B_BASE_URL'          => 'https://api.onecatalog.net/b2b/v1',
+            'B2B_KEY'               => '',
+            'B2B_PRIVATE_KEY'       => '',
+            'B2B_PRICE_STRATEGY'    => 'min',
+            'B2B_PROMO_AS_SALE'     => 'Y',
+            'B2B_DECIMAL_STOCK'     => 'Y',
+            'B2B_PAGE_SIZE'         => '200',
         ];
         foreach ($defaults as $name => $value) {
             if (Option::get('onecatalog.import', $name, null) === null) {

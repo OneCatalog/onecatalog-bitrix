@@ -28,6 +28,11 @@ return [
             'title' => Loc::getMessage('ONECATALOG_MENU_IMPORT'),
         ],
         [
+            'text'  => Loc::getMessage('ONECATALOG_MENU_PRICESTOCK'),
+            'url'   => 'onecatalog_pricestock.php?lang=' . LANGUAGE_ID,
+            'title' => Loc::getMessage('ONECATALOG_MENU_PRICESTOCK'),
+        ],
+        [
             'text'  => Loc::getMessage('ONECATALOG_MENU_MAPPING'),
             'url'   => 'onecatalog_mapping.php?lang=' . LANGUAGE_ID,
             'title' => Loc::getMessage('ONECATALOG_MENU_MAPPING'),
