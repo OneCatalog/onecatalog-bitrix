@@ -1,6 +1,6 @@
 <?php
 // Версия модуля (единственное место — см. CHANGELOG.md). SemVer.
 $arModuleVersion = [
-    'VERSION'      => '0.7.0',
+    'VERSION'      => '0.7.1',
     'VERSION_DATE' => '2026-06-25 00:00:00',
 ];

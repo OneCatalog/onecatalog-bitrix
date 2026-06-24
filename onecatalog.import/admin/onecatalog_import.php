@@ -97,6 +97,20 @@ if (!$iblockConfigured) {
     ]);
 }
 ?>
+<style>
+    #oc-import-app .oc-spinner {
+        display: none; width: 14px; height: 14px; margin-right: 7px;
+        border: 2px solid #cfd8e3; border-top-color: #2067b0; border-radius: 50%;
+        vertical-align: middle; animation: oc-spin .7s linear infinite;
+    }
+    @keyframes oc-spin { to { transform: rotate(360deg); } }
+    #oc-import-app .oc-bar-wrap { height: 6px; background: #eee; border-radius: 3px; margin-top: 8px; overflow: hidden; }
+    #oc-import-app .oc-bar { height: 100%; width: 0; background: #2067b0; transition: width .2s ease; }
+    #oc-import-app .oc-bar.oc-ok  { background: #3aa76d; }
+    #oc-import-app .oc-bar.oc-err { background: #d9534f; }
+    #oc-import-app button[disabled] { opacity: .55; cursor: default; }
+    #oc-import-app textarea[disabled] { background: #f3f3f3; }
+</style>
 <div id="oc-import-app" style="max-width:760px">
     <p>
         <button type="button" class="adm-btn adm-btn-save" id="oc-open-picker">
@@ -110,7 +124,11 @@ if (!$iblockConfigured) {
             <?= Loc::getMessage('ONECATALOG_IMPORT_BTN') ?>
         </button>
     </p>
-    <div id="oc-progress" style="font-weight:bold;margin:10px 0"></div>
+    <div id="oc-status" style="margin:12px 0;display:none">
+        <span class="oc-spinner" id="oc-spinner"></span>
+        <span id="oc-progress" style="font-weight:bold"></span>
+        <div class="oc-bar-wrap"><div class="oc-bar" id="oc-bar"></div></div>
+    </div>
     <pre id="oc-log" style="max-height:340px;overflow:auto;background:#f7f7f7;border:1px solid #ddd;padding:8px"></pre>
 </div>
 <script>window.OneCatalogCfg = <?= Json::encode($cfg) ?>;</script>
