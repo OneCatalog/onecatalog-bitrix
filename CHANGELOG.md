@@ -4,7 +4,7 @@
 нумерация версий — по [семантическому версионированию](https://semver.org/lang/ru/).
 
 Версия задаётся в `onecatalog.import/install/version.php`. Соответствие стандарту
-интеграции: **v1.0** (см. [onecatalog-standard](https://github.com/OneCatalog/onecatalog-standard)).
+интеграции: **v1.2** (см. [onecatalog-standard](https://github.com/OneCatalog/onecatalog-standard)).
 
 ## [Не выпущено] — бэклог
 

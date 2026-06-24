@@ -3,7 +3,7 @@
 Модуль импорта каталога из [OneCatalog](https://docs.onecatalog.net/) (Wiki API) в
 **1С-Битрикс** (инфоблоки `iblock` + торговый каталог `catalog`).
 
-- **Стандарт интеграции (канон):** [OneCatalog/onecatalog-standard](https://github.com/OneCatalog/onecatalog-standard) — соответствует стандарту **v1.0**
+- **Стандарт интеграции (канон):** [OneCatalog/onecatalog-standard](https://github.com/OneCatalog/onecatalog-standard) — соответствует стандарту **v1.2**
 - **Эталонная реализация:** [OneCatalog/onecatalog-woocommerce](https://github.com/OneCatalog/onecatalog-woocommerce)
 - **План порта и ответы:** [docs/integration-plan.md](docs/integration-plan.md) · [docs/integration-answers.md](docs/integration-answers.md)
 - **История изменений:** [CHANGELOG.md](CHANGELOG.md) · текущая версия — **0.1.0** (в разработке)
