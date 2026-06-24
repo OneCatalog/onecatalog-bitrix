@@ -83,6 +83,12 @@ $cfg = [
         'importing' => Loc::getMessage('ONECATALOG_JS_IMPORTING'),
         'done'      => Loc::getMessage('ONECATALOG_JS_DONE'),
         'error'     => Loc::getMessage('ONECATALOG_JS_ERROR'),
+        'cancelled' => Loc::getMessage('ONECATALOG_JS_CANCELLED'),
+        'created'   => Loc::getMessage('ONECATALOG_JS_CREATED'),
+        'updated'   => Loc::getMessage('ONECATALOG_JS_UPDATED'),
+        'skipped'   => Loc::getMessage('ONECATALOG_JS_SKIPPED'),
+        'errors'    => Loc::getMessage('ONECATALOG_JS_ERRORS'),
+        'last'      => Loc::getMessage('ONECATALOG_JS_LAST'),
     ],
 ];
 
@@ -123,11 +129,15 @@ if (!$iblockConfigured) {
         <button type="button" class="adm-btn" id="oc-import-btn">
             <?= Loc::getMessage('ONECATALOG_IMPORT_BTN') ?>
         </button>
+        <button type="button" class="adm-btn" id="oc-cancel-btn" style="display:none">
+            <?= Loc::getMessage('ONECATALOG_JS_CANCEL') ?>
+        </button>
     </p>
     <div id="oc-status" style="margin:12px 0;display:none">
         <span class="oc-spinner" id="oc-spinner"></span>
         <span id="oc-progress" style="font-weight:bold"></span>
         <div class="oc-bar-wrap"><div class="oc-bar" id="oc-bar"></div></div>
+        <div id="oc-summary" style="margin-top:8px;color:#333"></div>
     </div>
     <pre id="oc-log" style="max-height:340px;overflow:auto;background:#f7f7f7;border:1px solid #ddd;padding:8px"></pre>
 </div>
