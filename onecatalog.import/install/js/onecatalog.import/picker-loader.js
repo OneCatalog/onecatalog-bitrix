@@ -20,7 +20,7 @@
 
             var url = base + '/picker.html'
                 + '?token=' + encodeURIComponent(cfg.token || '')
-                + '&parentOrigin=' + encodeURIComponent(cfg.parentOrigin || '');
+                + '&parentOrigin=' + encodeURIComponent(window.location.origin);
 
             var overlay = document.createElement('div');
             overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:100000;';
