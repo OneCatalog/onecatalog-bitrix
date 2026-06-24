@@ -86,7 +86,6 @@ final class ProductImporter
             // §5.2: артикул производителя отдельно от public_id; пуст — не заполняем.
             $propValues[$articleProp['ID']] = (string) $payload['article'];
         }
-        $fields['PROPERTY_VALUES'] = $propValues;
 
         // --- сохранить элемент ---
         $el = new \CIBlockElement();
@@ -104,6 +103,13 @@ final class ProductImporter
             if (!$id) {
                 return ['status' => 'error', 'message' => $el->LAST_ERROR ?: 'add failed'];
             }
+        }
+
+        // Свойства (характеристики + public_id/article) пишем ПОСЛЕ сохранения через
+        // SetPropertyValuesEx — иначе только что созданные свойства не привязываются
+        // (кэш свойств инфоблока в объекте элемента). Это и есть фикс «нет характеристик».
+        if ($propValues) {
+            \CIBlockElement::SetPropertyValuesEx($id, $this->iblockId, $propValues);
         }
 
         // --- габариты (Units → CCatalogProduct), цена НЕ задаётся (§5.6) ---
@@ -469,14 +475,14 @@ final class ProductImporter
         }
 
         // Подпись набора: имена файлов + выбранный размер (триггер апгрейда качества).
+        // Хранится в служебной таблице Meta, а НЕ свойством товара (не засоряем форму).
         $sig = sha1((string) json_encode([
             'cover' => $coverUrl !== null ? basename((string) parse_url($coverUrl, PHP_URL_PATH)) : null,
             'size'  => $media->preferredSize(),
             'files' => array_map(static fn ($f) => $f['name'] ?: Media::extractPath($f['url']), $files),
         ], JSON_UNESCAPED_UNICODE));
 
-        $sigProp = $this->tax->ensureProperty('OC_MEDIA_SIG', 'OneCatalog media signature', 'S');
-        if ($sigProp && $this->propValue($id, 'OC_MEDIA_SIG') === $sig) {
+        if (Meta::get($id, 'media_sig') === $sig) {
             return; // без изменений и без улучшения качества — пропускаем (§5.3)
         }
 
@@ -489,7 +495,9 @@ final class ProductImporter
             }
         }
 
-        $galleryProp = $this->tax->ensureProperty('OC_MORE_PHOTO', 'OneCatalog gallery', 'F', true);
+        // Галерея → НАТИВНОЕ свойство «Детальные картинки» (CODE = MORE_PHOTO):
+        // если оно уже есть в инфоблоке — используем его, иначе создаём с этим кодом.
+        $galleryProp = $this->tax->ensureProperty('MORE_PHOTO', Loc::getMessage('ONECATALOG_PROP_MORE_PHOTO') ?: 'More photos', 'F', true);
         $galleryValues = [];
         foreach ($files as $f) {
             $fid = $media->sideload($f['url'], ['name' => $f['name'], 'alt' => $f['alt']]);
@@ -504,18 +512,7 @@ final class ProductImporter
         if ($galleryProp && $galleryValues) {
             \CIBlockElement::SetPropertyValuesEx($id, $this->iblockId, [$galleryProp['ID'] => $galleryValues]);
         }
-        if ($sigProp) {
-            \CIBlockElement::SetPropertyValuesEx($id, $this->iblockId, [$sigProp['ID'] => $sig]);
-        }
-    }
-
-    private function propValue(int $id, string $code): ?string
-    {
-        $rs = \CIBlockElement::GetProperty($this->iblockId, $id, [], ['CODE' => $code]);
-        if ($row = $rs->Fetch()) {
-            return $row['VALUE'] !== null ? (string) $row['VALUE'] : null;
-        }
-        return null;
+        Meta::set($id, 'media_sig', $sig);
     }
 
     /** OnBeforeImportProduct: сайт может вернуть изменённый payload (§8). */

@@ -141,13 +141,28 @@ class onecatalog_import extends CModule
             );
         }
 
+        // Служебные значения по элементам (сигнатуры идемпотентности, коды поставщиков),
+        // чтобы не засорять форму товара свойствами инфоблока.
+        if (!$connection->isTableExists('onecatalog_meta')) {
+            $connection->queryExecute(
+                "CREATE TABLE onecatalog_meta (
+                    ID int(11) NOT NULL AUTO_INCREMENT,
+                    ELEMENT_ID int(11) NOT NULL,
+                    META_KEY varchar(50) NOT NULL,
+                    VALUE longtext NULL,
+                    PRIMARY KEY (ID),
+                    UNIQUE INDEX ux_oc_meta (ELEMENT_ID, META_KEY)
+                )"
+            );
+        }
+
         return true;
     }
 
     public function UnInstallDB()
     {
         $connection = Application::getConnection();
-        foreach (['onecatalog_queue', 'onecatalog_media'] as $table) {
+        foreach (['onecatalog_queue', 'onecatalog_media', 'onecatalog_meta'] as $table) {
             if ($connection->isTableExists($table)) {
                 $connection->dropTable($table);
             }
@@ -198,9 +213,11 @@ class onecatalog_import extends CModule
             'LANG'                  => 'en',
             'STEP'                  => '10',
             'NEW_ACTIVE'            => 'Y',
-            'IMPORT_COLLECTIONS'    => 'Y',
+            // Справочные сущности по умолчанию ВЫКЛючены — включаются осознанно,
+            // после выбора целевого поля (нативное/существующее свойство или своё).
+            'IMPORT_COLLECTIONS'    => 'N',
             'COLLECTION_TARGET_TYPE'=> 'list',  // реализован адаптер «список»; iblock/раздел — opt-in
-            'IMPORT_BRAND'          => 'Y',
+            'IMPORT_BRAND'          => 'N',
             'BRAND_TARGET_TYPE'     => 'list',   // дефолт — список (L), не HL (в.10)
             'IMPORT_COUNTRY'        => 'N',
             'COUNTRY_TARGET_TYPE'   => 'list',

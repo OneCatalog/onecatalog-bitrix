@@ -12,6 +12,7 @@ Loader::registerAutoLoadClasses('onecatalog.import', [
     'OneCatalog\\Import\\Api'               => 'lib/api.php',
     'OneCatalog\\Import\\Units'             => 'lib/units.php',
     'OneCatalog\\Import\\Settings'          => 'lib/settings.php',
+    'OneCatalog\\Import\\Meta'              => 'lib/meta.php',
     'OneCatalog\\Import\\Media'             => 'lib/media.php',
     'OneCatalog\\Import\\Taxonomies'        => 'lib/taxonomies.php',
     'OneCatalog\\Import\\CollectionImporter'=> 'lib/collectionimporter.php',

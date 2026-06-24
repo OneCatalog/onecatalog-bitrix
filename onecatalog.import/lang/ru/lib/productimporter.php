@@ -7,3 +7,4 @@ $MESS['ONECATALOG_PROP_BRAND']      = 'Бренд';
 $MESS['ONECATALOG_PROP_COUNTRY']    = 'Страна происхождения';
 $MESS['ONECATALOG_PROP_COLLECTION'] = 'Коллекция';
 $MESS['ONECATALOG_PROP_TAGS']       = 'Теги';
+$MESS['ONECATALOG_PROP_MORE_PHOTO'] = 'Детальные картинки';

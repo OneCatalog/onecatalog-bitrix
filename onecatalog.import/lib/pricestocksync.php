@@ -259,10 +259,6 @@ final class PriceStockSync
             self::notifyChange();
         }
 
-        $tax = new Taxonomies($iblockId);
-        $tax->ensureProperty(self::SIG_PROP, 'OneCatalog price/stock signature', 'S');
-        $tax->ensureProperty(self::CODE_PROP, 'OneCatalog supplier code', 'S', true);
-
         $map = self::mapPublicIds($iblockId, array_keys($known)); // public_id => ['id'=>, 'sig'=>]
         $cfg = self::cfg();
         $currency   = Settings::b2bCurrency();
@@ -440,17 +436,9 @@ final class PriceStockSync
         // Суммарное количество выставляем всегда (типовые компоненты опираются на него).
         \CCatalogProduct::Update($id, ['QUANTITY' => $rec['qty']]);
 
-        // Коды поставщиков + сигнатура.
-        $values = [];
-        $tax = new Taxonomies($iblockId);
-        $codeProp = $tax->ensureProperty(self::CODE_PROP, 'OneCatalog supplier code', 'S', true);
-        $sigProp  = $tax->ensureProperty(self::SIG_PROP, 'OneCatalog price/stock signature', 'S');
-        if ($codeProp) {
-            \CIBlockElement::SetPropertyValuesEx($id, $iblockId, [$codeProp['ID'] => self::extractCodes($offers)]);
-        }
-        if ($sigProp) {
-            \CIBlockElement::SetPropertyValuesEx($id, $iblockId, [$sigProp['ID'] => $rec['sig']]);
-        }
+        // Коды поставщиков + сигнатура — служебные, в Meta (не свойства товара).
+        Meta::set($id, 'supplier_code', implode(',', self::extractCodes($offers)));
+        Meta::set($id, 'pricestock_sig', $rec['sig']);
 
         // Событие для сайтового слоя (§8/§13.7): сырые офферы для раскладки по регионам/складам.
         (new \Bitrix\Main\Event('onecatalog.import', 'OnAfterPriceStockUpdated', [
@@ -502,7 +490,11 @@ final class PriceStockSync
         }
     }
 
-    /** Карта public_id → ['id','sig'] одним запросом (для diff в памяти). */
+    /**
+     * Карта public_id → ['id','sig'] для diff в памяти.
+     * Элементы — одним запросом по свойству OC_PUBLIC_ID; сигнатуры цены/остатка —
+     * из служебной таблицы Meta (не свойство товара), тоже одним запросом.
+     */
     private static function mapPublicIds(int $iblockId, array $publicIds): array
     {
         $publicIds = array_values(array_filter(array_map('strval', $publicIds)));
@@ -514,14 +506,19 @@ final class PriceStockSync
             ['IBLOCK_ID' => $iblockId, 'PROPERTY_OC_PUBLIC_ID' => $publicIds],
             false,
             false,
-            ['ID', 'PROPERTY_OC_PUBLIC_ID', 'PROPERTY_' . self::SIG_PROP]
+            ['ID', 'PROPERTY_OC_PUBLIC_ID']
         );
-        $map = [];
+        $byId = [];
         while ($row = $rs->Fetch()) {
             $pid = (string) ($row['PROPERTY_OC_PUBLIC_ID_VALUE'] ?? '');
             if ($pid !== '') {
-                $map[$pid] = ['id' => (int) $row['ID'], 'sig' => (string) ($row['PROPERTY_' . self::SIG_PROP . '_VALUE'] ?? '')];
+                $byId[$pid] = (int) $row['ID'];
             }
+        }
+        $sigs = Meta::getMany(array_values($byId), 'pricestock_sig');
+        $map = [];
+        foreach ($byId as $pid => $id) {
+            $map[$pid] = ['id' => $id, 'sig' => $sigs[$id] ?? ''];
         }
         return $map;
     }
