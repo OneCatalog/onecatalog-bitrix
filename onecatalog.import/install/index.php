@@ -222,6 +222,11 @@ class onecatalog_import extends CModule
             'IMPORT_COUNTRY'        => 'N',
             'COUNTRY_TARGET_TYPE'   => 'list',
             'IMPORT_TAGS'           => 'N',
+            // Целевое свойство справочных сущностей: пусто = авто-создание своего
+            // списка (OC_*); иначе — код существующего свойства-списка инфоблока.
+            'BRAND_PROP_CODE'       => '',
+            'COUNTRY_PROP_CODE'     => '',
+            'COLLECTION_PROP_CODE'  => '',
             'SPEC_MANUAL_MAPPING'   => 'N',
             'CATALOG_IBLOCK_ID'     => '',
             // B2B: цены и остатки (§13)

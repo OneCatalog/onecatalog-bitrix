@@ -18,3 +18,6 @@ $MESS['ONECATALOG_F_COLLECTIONS']   = 'Import collections';
 $MESS['ONECATALOG_F_BRAND']         = 'Import brand';
 $MESS['ONECATALOG_F_COUNTRY']       = 'Import country';
 $MESS['ONECATALOG_F_TAGS']          = 'Import tags';
+$MESS['ONECATALOG_F_TARGET']         = '↳ Target property';
+$MESS['ONECATALOG_TARGET_AUTO']      = 'Auto (create own list property)';
+$MESS['ONECATALOG_TAGS_NATIVE_HINT'] = '→ native element “Tags” field';

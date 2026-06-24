@@ -20,7 +20,8 @@ final class BrandImporter
         private Api $api,
         private Taxonomies $tax,
         private int $iblockId,
-        private string $propName
+        private string $propName,
+        private string $propCode = 'OC_BRAND'
     ) {
     }
 
@@ -35,7 +36,7 @@ final class BrandImporter
         }
 
         $xmlId = isset($brand['id']) ? 'OC_BRAND_' . (int) $brand['id'] : null;
-        $v = $this->tax->ensureListValue('OC_BRAND', $this->propName, $name, $xmlId);
+        $v = $this->tax->ensureListValue($this->propCode, $this->propName, $name, $xmlId);
         if ($v === null) {
             return null;
         }

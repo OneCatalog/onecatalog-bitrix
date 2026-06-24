@@ -25,6 +25,7 @@ $fields = [
     'API_TOKEN', 'API_BASE_URL', 'PICKER_BASE', 'LANG', 'STEP',
     'NEW_ACTIVE', 'CATALOG_IBLOCK_ID',
     'IMPORT_COLLECTIONS', 'IMPORT_BRAND', 'IMPORT_COUNTRY', 'IMPORT_TAGS',
+    'COLLECTION_PROP_CODE', 'BRAND_PROP_CODE', 'COUNTRY_PROP_CODE',
 ];
 
 $message = null;
@@ -57,6 +58,40 @@ if (Loader::includeModule('iblock')) {
         $iblocks[(int) $row['ID']] = '[' . $row['ID'] . '] ' . $row['NAME'] . ' (' . $row['IBLOCK_TYPE_ID'] . ')';
     }
 }
+
+// Существующие свойства-списки (тип L) целевого инфоблока — для маппинга
+// бренда/страны/коллекции на уже имеющееся свойство (иначе авто-создаётся своё).
+$listProps = [];
+$curIblockId = (int) Settings::get('CATALOG_IBLOCK_ID', 0);
+if ($curIblockId > 0 && Loader::includeModule('iblock')) {
+    $rsp = CIBlockProperty::GetList(
+        ['SORT' => 'ASC', 'NAME' => 'ASC'],
+        ['IBLOCK_ID' => $curIblockId, 'PROPERTY_TYPE' => 'L', 'ACTIVE' => 'Y']
+    );
+    while ($p = $rsp->Fetch()) {
+        $code = (string) ($p['CODE'] ?? '');
+        if ($code !== '') {
+            $listProps[$code] = '[' . $code . '] ' . $p['NAME'];
+        }
+    }
+}
+
+// Рендер селекта «целевое свойство» (существующее L-свойство или авто-создание своего).
+$targetSelect = static function (string $field, string $autoCode) use ($listProps): string {
+    $cur = (string) Settings::get($field, '');
+    $h = '<select name="' . $field . '">';
+    $h .= '<option value="">' . (Loc::getMessage('ONECATALOG_TARGET_AUTO') ?: 'Auto (create own list)')
+        . ' — ' . htmlspecialcharsbx($autoCode) . '</option>';
+    foreach ($listProps as $code => $label) {
+        if ($code === $autoCode) {
+            continue; // своё авто-свойство уже представлено опцией «Auto»
+        }
+        $sel = ($cur === $code) ? ' selected' : '';
+        $h .= '<option value="' . htmlspecialcharsbx($code) . '"' . $sel . '>' . htmlspecialcharsbx($label) . '</option>';
+    }
+    $h .= '</select>';
+    return $h;
+};
 
 $APPLICATION->SetTitle(Loc::getMessage('ONECATALOG_SETTINGS_TITLE'));
 require $_SERVER['DOCUMENT_ROOT'] . '/bitrix/modules/main/include/prolog_admin_after.php';
@@ -129,19 +164,34 @@ $curIblock = (int) Settings::get('CATALOG_IBLOCK_ID', 0);
     </tr>
     <tr>
         <td><?= Loc::getMessage('ONECATALOG_F_COLLECTIONS') ?></td>
-        <td><input type="checkbox" name="IMPORT_COLLECTIONS" value="Y"<?= Settings::bool('IMPORT_COLLECTIONS', true) ? ' checked' : '' ?>></td>
+        <td><input type="checkbox" name="IMPORT_COLLECTIONS" value="Y"<?= Settings::bool('IMPORT_COLLECTIONS', false) ? ' checked' : '' ?>></td>
+    </tr>
+    <tr>
+        <td><?= Loc::getMessage('ONECATALOG_F_TARGET') ?></td>
+        <td><?= $targetSelect('COLLECTION_PROP_CODE', 'OC_COLLECTION') ?></td>
     </tr>
     <tr>
         <td><?= Loc::getMessage('ONECATALOG_F_BRAND') ?></td>
-        <td><input type="checkbox" name="IMPORT_BRAND" value="Y"<?= Settings::bool('IMPORT_BRAND', true) ? ' checked' : '' ?>></td>
+        <td><input type="checkbox" name="IMPORT_BRAND" value="Y"<?= Settings::bool('IMPORT_BRAND', false) ? ' checked' : '' ?>></td>
+    </tr>
+    <tr>
+        <td><?= Loc::getMessage('ONECATALOG_F_TARGET') ?></td>
+        <td><?= $targetSelect('BRAND_PROP_CODE', 'OC_BRAND') ?></td>
     </tr>
     <tr>
         <td><?= Loc::getMessage('ONECATALOG_F_COUNTRY') ?></td>
         <td><input type="checkbox" name="IMPORT_COUNTRY" value="Y"<?= Settings::bool('IMPORT_COUNTRY', false) ? ' checked' : '' ?>></td>
     </tr>
     <tr>
+        <td><?= Loc::getMessage('ONECATALOG_F_TARGET') ?></td>
+        <td><?= $targetSelect('COUNTRY_PROP_CODE', 'OC_COUNTRY') ?></td>
+    </tr>
+    <tr>
         <td><?= Loc::getMessage('ONECATALOG_F_TAGS') ?></td>
-        <td><input type="checkbox" name="IMPORT_TAGS" value="Y"<?= Settings::bool('IMPORT_TAGS', false) ? ' checked' : '' ?>></td>
+        <td>
+            <input type="checkbox" name="IMPORT_TAGS" value="Y"<?= Settings::bool('IMPORT_TAGS', false) ? ' checked' : '' ?>>
+            <span style="color:#888"><?= Loc::getMessage('ONECATALOG_TAGS_NATIVE_HINT') ?></span>
+        </td>
     </tr>
 
     <?php

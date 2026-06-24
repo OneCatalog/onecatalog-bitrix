@@ -12,7 +12,8 @@ final class CountryImporter
     public function __construct(
         private Taxonomies $tax,
         private int $iblockId,
-        private string $propName
+        private string $propName,
+        private string $propCode = 'OC_COUNTRY'
     ) {
     }
 
@@ -24,7 +25,7 @@ final class CountryImporter
             return null;
         }
         $xmlId = isset($country['id']) ? 'OC_COUNTRY_' . (int) $country['id'] : null;
-        $v = $this->tax->ensureListValue('OC_COUNTRY', $this->propName, $name, $xmlId);
+        $v = $this->tax->ensureListValue($this->propCode, $this->propName, $name, $xmlId);
         if ($v === null) {
             return null;
         }

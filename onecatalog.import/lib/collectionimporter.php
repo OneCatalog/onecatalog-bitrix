@@ -19,7 +19,8 @@ final class CollectionImporter
         private Api $api,
         private Taxonomies $tax,
         private int $iblockId,
-        private string $propName
+        private string $propName,
+        private string $propCode = 'OC_COLLECTION'
     ) {
     }
 
@@ -29,7 +30,7 @@ final class CollectionImporter
      */
     public function assign(int $elementId, array $collections): array
     {
-        $prop = $this->tax->ensureProperty('OC_COLLECTION', $this->propName, 'L', true);
+        $prop = $this->tax->ensureProperty($this->propCode, $this->propName, 'L', true);
         if ($prop === null) {
             return [];
         }

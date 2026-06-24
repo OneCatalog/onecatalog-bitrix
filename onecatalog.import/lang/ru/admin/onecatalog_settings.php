@@ -18,3 +18,6 @@ $MESS['ONECATALOG_F_COLLECTIONS']   = 'Импортировать коллекц
 $MESS['ONECATALOG_F_BRAND']         = 'Импортировать бренд';
 $MESS['ONECATALOG_F_COUNTRY']       = 'Импортировать страну';
 $MESS['ONECATALOG_F_TAGS']          = 'Импортировать теги';
+$MESS['ONECATALOG_F_TARGET']         = '↳ Целевое свойство';
+$MESS['ONECATALOG_TARGET_AUTO']      = 'Авто (создать своё свойство-список)';
+$MESS['ONECATALOG_TAGS_NATIVE_HINT'] = '→ нативное поле «Теги» у элемента';

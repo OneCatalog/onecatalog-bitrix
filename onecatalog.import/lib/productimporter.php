@@ -375,9 +375,10 @@ final class ProductImporter
      */
     private function applyReferences(int $id, array $payload): void
     {
-        if (!empty($payload['brand']) && is_array($payload['brand']) && Settings::bool('IMPORT_BRAND', true)) {
+        if (!empty($payload['brand']) && is_array($payload['brand']) && Settings::bool('IMPORT_BRAND', false)) {
             $name = Loc::getMessage('ONECATALOG_PROP_BRAND') ?: 'Brand';
-            $r = (new BrandImporter($this->api, $this->tax, $this->iblockId, $name))->assign($id, $payload['brand']);
+            $code = (string) (Settings::get('BRAND_PROP_CODE', '') ?: 'OC_BRAND');
+            $r = (new BrandImporter($this->api, $this->tax, $this->iblockId, $name, $code))->assign($id, $payload['brand']);
             if ($r !== null) {
                 $this->fireEntity('OnAfterBrandImported', $id, $payload['brand'], $r);
             }
@@ -385,7 +386,8 @@ final class ProductImporter
 
         if (!empty($payload['country']) && is_array($payload['country']) && Settings::bool('IMPORT_COUNTRY', false)) {
             $name = Loc::getMessage('ONECATALOG_PROP_COUNTRY') ?: 'Country';
-            $r = (new CountryImporter($this->tax, $this->iblockId, $name))->assign($id, $payload['country']);
+            $code = (string) (Settings::get('COUNTRY_PROP_CODE', '') ?: 'OC_COUNTRY');
+            $r = (new CountryImporter($this->tax, $this->iblockId, $name, $code))->assign($id, $payload['country']);
             if ($r !== null) {
                 $this->fireEntity('OnAfterCountryImported', $id, $payload['country'], $r);
             }
@@ -396,28 +398,20 @@ final class ProductImporter
         }
     }
 
-    /** Теги → множественное свойство-список OC_TAGS (поиск по title, §5.1). */
+    /** Теги → НАТИВНОЕ поле элемента TAGS (строка через запятую), поиск по title (§5.1). */
     private function applyTags(int $id, array $tags): void
     {
-        $prop = $this->tax->ensureProperty('OC_TAGS', Loc::getMessage('ONECATALOG_PROP_TAGS') ?: 'Tags', 'L', true);
-        if ($prop === null) {
-            return;
-        }
-        $enumIds = [];
+        $titles = [];
         foreach ($tags as $t) {
             $title = trim((string) ($t['title'] ?? $t['name'] ?? ''));
-            if ($title === '') {
-                continue;
-            }
-            $xmlId = isset($t['id']) ? 'OC_TAG_' . (int) $t['id'] : null;
-            $enumId = $this->tax->ensureEnum($prop['ID'], $title, $xmlId);
-            if ($enumId) {
-                $enumIds[] = $enumId;
+            if ($title !== '') {
+                $titles[$title] = $title; // дедуп по значению
             }
         }
-        if ($enumIds) {
-            \CIBlockElement::SetPropertyValuesEx($id, $this->iblockId, [$prop['ID'] => $enumIds]);
+        if (!$titles) {
+            return;
         }
+        (new \CIBlockElement())->Update($id, ['TAGS' => implode(', ', array_values($titles))]);
     }
 
     /** Коллекции (§3, §7): дефолт-адаптер — множественный список; поля → событие (§8). */
@@ -426,11 +420,12 @@ final class ProductImporter
         if (empty($payload['collections']) || !is_array($payload['collections'])) {
             return;
         }
-        if (!Settings::bool('IMPORT_COLLECTIONS', true)) {
+        if (!Settings::bool('IMPORT_COLLECTIONS', false)) {
             return;
         }
         $name = Loc::getMessage('ONECATALOG_PROP_COLLECTION') ?: 'Collection';
-        $results = (new CollectionImporter($this->api, $this->tax, $this->iblockId, $name))
+        $code = (string) (Settings::get('COLLECTION_PROP_CODE', '') ?: 'OC_COLLECTION');
+        $results = (new CollectionImporter($this->api, $this->tax, $this->iblockId, $name, $code))
             ->assign($id, $payload['collections']);
         foreach ($results as $i => $res) {
             $entity = $payload['collections'][$i] ?? [];
