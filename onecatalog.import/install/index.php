@@ -191,11 +191,14 @@ class onecatalog_import extends CModule
 
     public function InstallEvents()
     {
+        // Колонка OneCatalog ID в списке товаров (украшение ячейки OC_PUBLIC_ID).
+        \RegisterModuleDependences('main', 'OnAdminListDisplay', $this->MODULE_ID, 'OneCatalog\\Import\\AdminColumn', 'onAdminListDisplay');
         return true;
     }
 
     public function UnInstallEvents()
     {
+        \UnRegisterModuleDependences('main', 'OnAdminListDisplay', $this->MODULE_ID, 'OneCatalog\\Import\\AdminColumn', 'onAdminListDisplay');
         return true;
     }
 
