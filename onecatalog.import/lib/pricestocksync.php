@@ -273,6 +273,7 @@ final class PriceStockSync
         $scanned = 0;
         $changed = 0;
         $unchanged = 0;
+        $missing = [];
 
         foreach ($known as $publicId => $offers) {
             $publicId = (string) $publicId;
@@ -281,7 +282,8 @@ final class PriceStockSync
 
             $row = $map[$publicId] ?? null;
             if ($row === null) {
-                continue; // нет товара в каталоге — пропускаем (импорт — отдельным механизмом)
+                $missing[] = $publicId; // нет товара в каталоге (§13.5)
+                continue;
             }
             $rec = self::resolveRecord($offers, $cfg);
             if (($row['sig'] ?? '') === $rec['sig']) {
@@ -290,6 +292,31 @@ final class PriceStockSync
             }
             self::applyResolved((int) $row['id'], $iblockId, $rec, $offers, $groupId, $currency, $promoGroup, $useStores, $warehouses);
             $changed++;
+        }
+
+        // §13.5 — ненайденные known-товары: импортировать через Wiki или пропустить.
+        $imported = 0;
+        if ($missing && Settings::b2bKnownMissing() === 'import') {
+            $res = Queue::importBatch($missing);
+            foreach ($res as $r) {
+                if (in_array(($r['status'] ?? ''), ['created', 'updated'], true)) {
+                    $imported++;
+                }
+            }
+            self::log('missing', (string) $start, 'imported ' . $imported . ' of ' . count($missing));
+        }
+
+        // §13.5 — unknown-товары поставщиков: отстойник (ручной отбор) или пропуск.
+        $staged = 0;
+        if (Settings::b2bUnknownMode() === 'staging') {
+            $unknown = (array) ($data['products']['unknown'] ?? []);
+            $suppliers = (array) ($data['suppliers'] ?? []);
+            foreach ($unknown as $offer) {
+                if (is_array($offer)) {
+                    Staging::collect($offer, $suppliers);
+                    $staged++;
+                }
+            }
         }
 
         $next = $start + $size;
@@ -302,7 +329,45 @@ final class PriceStockSync
             self::finishProgress();
         }
 
-        return ['ok' => true, 'more' => $more, 'next' => $next, 'scanned' => $scanned, 'changed' => $changed, 'unchanged' => $unchanged, 'total' => $total];
+        return ['ok' => true, 'more' => $more, 'next' => $next, 'scanned' => $scanned, 'changed' => $changed, 'unchanged' => $unchanged, 'total' => $total, 'missing' => count($missing), 'imported' => $imported, 'staged' => $staged];
+    }
+
+    // ===================== §13.6 Авто-расписание (CAgent) =====================
+
+    public const MODULE_ID = 'onecatalog.import';
+
+    /** Строка вызова агента (она же возвращается агентом для перепланирования). */
+    public static function agentName(): string
+    {
+        return '\\OneCatalog\\Import\\PriceStockSync::agentRun();';
+    }
+
+    /** Агент: полный прогон синка (страница за страницей). Возвращает себя. */
+    public static function agentRun(): string
+    {
+        if (Settings::b2bConfigured()) {
+            $size = Settings::b2bPageSize();
+            $r = self::processPage(0, $size);
+            $guard = 0;
+            while (!empty($r['more']) && $guard++ < 5000) {
+                $r = self::processPage((int) $r['next'], $size);
+            }
+        }
+        return self::agentName();
+    }
+
+    /** Перерегистрировать агента по текущей настройке расписания (off → снять). */
+    public static function reschedule(): void
+    {
+        if (!class_exists('\\CAgent')) {
+            return;
+        }
+        $name = self::agentName();
+        \CAgent::RemoveAgent($name, self::MODULE_ID);
+        $interval = Settings::b2bScheduleInterval();
+        if ($interval > 0) {
+            \CAgent::AddAgent($name, self::MODULE_ID, 'N', $interval, '', 'Y');
+        }
     }
 
     // ===================== Прогресс / история / уведомления =====================

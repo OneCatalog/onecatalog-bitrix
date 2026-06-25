@@ -226,6 +226,34 @@ final class Settings
         return self::bool('B2B_NOTIFY', true);
     }
 
+    /** §13.5: что делать с known-товарами, которых нет в каталоге: skip | import. */
+    public static function b2bKnownMissing(): string
+    {
+        $v = (string) self::get('B2B_KNOWN_MISSING', 'skip');
+        return in_array($v, ['skip', 'import'], true) ? $v : 'skip';
+    }
+
+    /** §13.5: что делать с unknown-товарами поставщиков: skip | staging (отстойник). */
+    public static function b2bUnknownMode(): string
+    {
+        $v = (string) self::get('B2B_UNKNOWN_MODE', 'skip');
+        return in_array($v, ['skip', 'staging'], true) ? $v : 'skip';
+    }
+
+    /** §13.6: расписание авто-синка: off | hourly | 3h | 6h | daily. */
+    public static function b2bSchedule(): string
+    {
+        $v = (string) self::get('B2B_SCHEDULE', 'off');
+        return in_array($v, ['off', 'hourly', '3h', '6h', 'daily'], true) ? $v : 'off';
+    }
+
+    /** Интервал расписания в секундах (0 — выключено). */
+    public static function b2bScheduleInterval(): int
+    {
+        $map = ['hourly' => 3600, '3h' => 10800, '6h' => 21600, 'daily' => 86400];
+        return $map[self::b2bSchedule()] ?? 0;
+    }
+
     /** Подтверждённый справочник {regions,warehouses,suppliers} id=>label. */
     public static function b2bCatalogMeta(): array
     {

@@ -85,6 +85,15 @@ if ($canWrite && $_SERVER['REQUEST_METHOD'] === 'POST' && check_bitrix_sessid() 
     Settings::set('B2B_PROMO_AS_SALE', empty($_POST['B2B_PROMO_AS_SALE']) ? 'N' : 'Y');
     Settings::set('B2B_DECIMAL_STOCK', empty($_POST['B2B_DECIMAL_STOCK']) ? 'N' : 'Y');
     Settings::set('B2B_NOTIFY', empty($_POST['B2B_NOTIFY']) ? 'N' : 'Y');
+    // §13.5 — ненайденные / unknown.
+    $km = (string) ($_POST['B2B_KNOWN_MISSING'] ?? 'skip');
+    Settings::set('B2B_KNOWN_MISSING', in_array($km, ['skip', 'import'], true) ? $km : 'skip');
+    $um = (string) ($_POST['B2B_UNKNOWN_MODE'] ?? 'skip');
+    Settings::set('B2B_UNKNOWN_MODE', in_array($um, ['skip', 'staging'], true) ? $um : 'skip');
+    // §13.6 — расписание авто-синка (перерегистрируем агента).
+    $sched = (string) ($_POST['B2B_SCHEDULE'] ?? 'off');
+    Settings::set('B2B_SCHEDULE', in_array($sched, ['off', 'hourly', '3h', '6h', 'daily'], true) ? $sched : 'off');
+    PriceStockSync::reschedule();
     Settings::acknowledgeFeed(); // сохранение = подтверждение текущего состава фида
     $saved = true;
 }
@@ -219,6 +228,22 @@ $renderSortable = static function (string $field, array $order, array $labels, a
                 <label><input type="checkbox" name="B2B_NOTIFY" value="Y"<?= Settings::b2bNotifyEnabled() ? ' checked' : '' ?>> <?= Loc::getMessage('ONECATALOG_PS_NOTIFY') ?></label><br>
                 <?= Loc::getMessage('ONECATALOG_PS_PAGE') ?>: <input type="number" name="B2B_PAGE_SIZE" min="50" max="500" value="<?= (int) Settings::b2bPageSize() ?>" style="width:80px">
             </td></tr>
+        <tr><td><?= Loc::getMessage('ONECATALOG_PS_KNOWN_MISSING') ?></td>
+            <td><select name="B2B_KNOWN_MISSING">
+                <option value="skip"<?= Settings::b2bKnownMissing() === 'skip' ? ' selected' : '' ?>><?= Loc::getMessage('ONECATALOG_PS_KM_SKIP') ?></option>
+                <option value="import"<?= Settings::b2bKnownMissing() === 'import' ? ' selected' : '' ?>><?= Loc::getMessage('ONECATALOG_PS_KM_IMPORT') ?></option>
+            </select></td></tr>
+        <tr><td><?= Loc::getMessage('ONECATALOG_PS_UNKNOWN') ?></td>
+            <td><select name="B2B_UNKNOWN_MODE">
+                <option value="skip"<?= Settings::b2bUnknownMode() === 'skip' ? ' selected' : '' ?>><?= Loc::getMessage('ONECATALOG_PS_UM_SKIP') ?></option>
+                <option value="staging"<?= Settings::b2bUnknownMode() === 'staging' ? ' selected' : '' ?>><?= Loc::getMessage('ONECATALOG_PS_UM_STAGING') ?></option>
+            </select></td></tr>
+        <tr><td><?= Loc::getMessage('ONECATALOG_PS_SCHEDULE') ?></td>
+            <td><select name="B2B_SCHEDULE">
+                <?php foreach (['off', 'hourly', '3h', '6h', 'daily'] as $opt): ?>
+                <option value="<?= $opt ?>"<?= Settings::b2bSchedule() === $opt ? ' selected' : '' ?>><?= Loc::getMessage('ONECATALOG_PS_SCH_' . strtoupper($opt)) ?></option>
+                <?php endforeach; ?>
+            </select> <span style="color:#888"><?= Loc::getMessage('ONECATALOG_PS_SCHEDULE_HINT') ?></span></td></tr>
     </table>
     <?php if ($canWrite): ?>
         <input type="submit" name="save" class="adm-btn-save" value="<?= Loc::getMessage('ONECATALOG_PS_SAVE') ?>">

@@ -38,6 +38,11 @@ return [
             'title' => Loc::getMessage('ONECATALOG_MENU_B2B_LOG'),
         ],
         [
+            'text'  => Loc::getMessage('ONECATALOG_MENU_STAGING'),
+            'url'   => 'onecatalog_b2b_staging.php?lang=' . LANGUAGE_ID,
+            'title' => Loc::getMessage('ONECATALOG_MENU_STAGING'),
+        ],
+        [
             'text'  => Loc::getMessage('ONECATALOG_MENU_MAPPING'),
             'url'   => 'onecatalog_mapping.php?lang=' . LANGUAGE_ID,
             'title' => Loc::getMessage('ONECATALOG_MENU_MAPPING'),

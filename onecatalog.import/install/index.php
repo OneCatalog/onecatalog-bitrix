@@ -141,6 +141,25 @@ class onecatalog_import extends CModule
             );
         }
 
+        // «Отстойник» (staging) для unknown-товаров B2B-фида (§13.5) — ручной отбор.
+        if (!$connection->isTableExists('onecatalog_b2b_staging')) {
+            $connection->queryExecute(
+                "CREATE TABLE onecatalog_b2b_staging (
+                    ID int(11) NOT NULL AUTO_INCREMENT,
+                    SUPPLIER_ID int(11) NULL,
+                    CODE varchar(128) NOT NULL,
+                    NAME varchar(512) NULL,
+                    DATA longtext NULL,
+                    STATUS varchar(16) NOT NULL DEFAULT 'new',
+                    CREATED_AT datetime NOT NULL,
+                    UPDATED_AT datetime NULL,
+                    PRIMARY KEY (ID),
+                    UNIQUE INDEX ux_oc_staging (SUPPLIER_ID, CODE),
+                    INDEX ix_oc_staging_status (STATUS)
+                )"
+            );
+        }
+
         // Служебные значения по элементам (сигнатуры идемпотентности, коды поставщиков),
         // чтобы не засорять форму товара свойствами инфоблока.
         if (!$connection->isTableExists('onecatalog_meta')) {
@@ -162,7 +181,7 @@ class onecatalog_import extends CModule
     public function UnInstallDB()
     {
         $connection = Application::getConnection();
-        foreach (['onecatalog_queue', 'onecatalog_media', 'onecatalog_meta'] as $table) {
+        foreach (['onecatalog_queue', 'onecatalog_media', 'onecatalog_meta', 'onecatalog_b2b_staging'] as $table) {
             if ($connection->isTableExists($table)) {
                 $connection->dropTable($table);
             }
