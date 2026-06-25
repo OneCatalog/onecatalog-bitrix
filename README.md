@@ -11,10 +11,11 @@
 - **Стандарт интеграции (канон):** [OneCatalog/onecatalog-standard](https://github.com/OneCatalog/onecatalog-standard) — соответствует стандарту **v1.2**
 - **Эталонная реализация:** [OneCatalog/onecatalog-woocommerce](https://github.com/OneCatalog/onecatalog-woocommerce)
 - **План порта и ответы:** [docs/integration-plan.md](docs/integration-plan.md) · [docs/integration-answers.md](docs/integration-answers.md)
-- **История изменений:** [CHANGELOG.md](CHANGELOG.md) · текущая версия — **0.1.0** (в разработке)
+- **История изменений:** [CHANGELOG.md](CHANGELOG.md) · текущая версия — **0.10.0** (ветка `dev`)
 
-> ⚠️ Статус: **ранняя разработка**. Готов фундамент (манифест, установка, слои
-> `Api`/`Units`/`Settings`); импортёр товаров, медиа, очередь и UI — в работе.
+> ⚠️ Статус: **функционально полный** (импорт каталога §1–§12 + B2B §13: цены/остатки,
+> отстойник, расписание; пикер, медиа, справочные сущности, журналы, события). На `dev`
+> до живого production-теста — в `main` попадёт после проверки на инстансе.
 
 ## Установка
 
